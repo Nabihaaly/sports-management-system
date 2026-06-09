@@ -1,0 +1,27 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+}
+
+enum Role{
+  ADMIN
+  VENUE_OWNER
+  PLAYER
+}
+
+model User {
+  id        Int   @id @default(autoincrement())
+  email     String   @unique
+  role      Role     @default(PLAYER)
+  password  String
+
+  refreshToken String?
+
+  isActive  Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
