@@ -7,6 +7,15 @@ datasource db {
   provider = "postgresql"
 }
 
+<<<<<<< Updated upstream
+=======
+enum Role {
+  ADMIN
+  PLAYER
+  OWNER
+}
+
+>>>>>>> Stashed changes
 model User {
   id            String    @id
   name          String
@@ -18,6 +27,11 @@ model User {
   sessions      Session[]
   accounts      Account[]
 
+<<<<<<< Updated upstream
+=======
+  role          Role     @default(PLAYER)
+
+>>>>>>> Stashed changes
   @@unique([email])
   @@map("user")
 }

@@ -8,6 +8,9 @@ export class StudentTestService {
     private prisma: PrismaService,
   ) {}
 
+  async getData(){
+    return { message: "hi" };
+  }
 
   // async createstudent(dto: CreateStudentDto){
   //    return this.prisma.student.create({

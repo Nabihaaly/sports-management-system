@@ -1,6 +1,14 @@
-import { Controller, Post,Body, Get } from '@nestjs/common';
 import { StudentTestService } from './student-test.service';
-import { CreateStudentDto } from './dto/create-student-dto';
+import { AuthGuard} from '@thallesp/nestjs-better-auth';
+import { Roles } from 'src/common/decorators/role.decorators';
+import { RolesGuard } from 'src/common/guards/role.guards';
+import {
+  Controller,
+  Get,
+  UseGuards,
+} from '@nestjs/common';
+
+import { Role } from '@prisma/client';
 
 @Controller('student')
 export class StudentTestController {
@@ -8,15 +16,12 @@ export class StudentTestController {
     private readonly stestservice: StudentTestService,
   ) {}
 
-//    @Post()
-//     create(@Body() dto: CreateStudentDto){
-//         return this.stestservice.createstudent(dto)
-//     }
-
-   @Get()
-   getall(){
-    return "hello bro";
-   }
+  @Get('/')
+  @UseGuards(RolesGuard,AuthGuard)
+  @Roles(Role.PLAYER)
+  getData() {
+    return this.stestservice.getData();
+  }
 
 
 }
