@@ -3,11 +3,14 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 
+
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule,{
+    bodyParser: false, // Required for Better Auth
+  });
 
   // project description
-  app.setGlobalPrefix('api'); // sets a global prefix for all routes, e.g., /api/users
+  // app.setGlobalPrefix('api'); // sets a global prefix for all routes, e.g., /api/users
   
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,       // strips unknown fields
@@ -15,7 +18,7 @@ async function bootstrap() {
     transform: true,       // auto-transforms types
   }));
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(process.env.PORT ?? 4380);
   
 }
 bootstrap().catch((error) => {
