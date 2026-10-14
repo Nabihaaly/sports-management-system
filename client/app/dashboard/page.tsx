@@ -1,5 +1,5 @@
 "use client"
-import { getPlayerData } from "@/services/playerDashboard";
+import { getPlayerData } from '../../services/playerDashboard';
 import { useEffect, useState } from "react";
 
 const page = () => {

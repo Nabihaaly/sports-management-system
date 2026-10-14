@@ -9,6 +9,14 @@ async function bootstrap() {
     bodyParser: false, // Required for Better Auth
   });
 
+    app.enableCors({
+    origin: 'http://localhost:3000',
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  });
+
+
   // project description
   // app.setGlobalPrefix('api'); // sets a global prefix for all routes, e.g., /api/users
   

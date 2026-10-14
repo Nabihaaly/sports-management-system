@@ -1,6 +1,6 @@
 "use client"
 import { useState } from "react"
-import { updateRole } from "@/services/setRole"
+import { updateRole } from '../../services/setRole';
 import toast from "react-hot-toast";
 import { useRouter } from "next/navigation";
 
@@ -20,7 +20,7 @@ const page = () => {
         if (data.role === "PLAYER") {
           router.push("/dashboard");
         } else if (data.role === "OWNER") {
-          router.push("/ownerDetails");
+          router.push("/venueApplications");
         } else {
           toast.error("User role not recognized");
         }

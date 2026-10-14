@@ -9,7 +9,7 @@ export class StudentTestService {
   ) {}
 
   async getData(){
-    return { message: "hi" };
+    return { message: "This is player Dashboard" };
   }
 
   // async createstudent(dto: CreateStudentDto){

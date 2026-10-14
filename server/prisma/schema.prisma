@@ -7,15 +7,12 @@ datasource db {
   provider = "postgresql"
 }
 
-<<<<<<< Updated upstream
-=======
 enum Role {
   ADMIN
   PLAYER
   OWNER
 }
 
->>>>>>> Stashed changes
 model User {
   id            String    @id
   name          String
@@ -26,12 +23,10 @@ model User {
   updatedAt     DateTime  @updatedAt
   sessions      Session[]
   accounts      Account[]
+  venueOwnerPersonal VenueOwnerPersonal?
 
-<<<<<<< Updated upstream
-=======
   role          Role     @default(PLAYER)
 
->>>>>>> Stashed changes
   @@unique([email])
   @@map("user")
 }
@@ -82,4 +77,44 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+enum OwnerStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model VenueOwnerPersonal {
+  id          String      @id @default(cuid())
+  userId      String      @unique
+  fullName    String
+  cnic        String      @unique
+  phoneNumber String
+  status      OwnerStatus @default(PENDING)
+
+  user   User    @relation(fields: [userId], references: [id])
+  venues VenueApplicationDetails[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VenueApplicationDetails {
+  id           String @id @default(cuid())
+  venueOwnerId String
+
+  venueName              String
+  description            String?
+  address                String
+  city                   String
+  images                 String[]
+  businessRegistration  String
+  sizeOfVenue            String
+  courtsPriceRange       String
+
+  venueOwner VenueOwnerPersonal @relation(fields: [venueOwnerId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

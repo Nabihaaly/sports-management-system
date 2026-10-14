@@ -1,6 +1,6 @@
 export async function updateRole(role: string) {
   try {
-    const response = await fetch("http://localhost:3001/auth/setRole", {
+    const response = await fetch("http://localhost:4380/auth/setRole", {
       method: "PATCH",
       credentials: "include",
       headers: {

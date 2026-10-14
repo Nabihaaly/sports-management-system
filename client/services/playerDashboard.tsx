@@ -1,7 +1,7 @@
 export async function getPlayerData(){
     try {
     const response = await fetch(
-      "http://localhost:3001/student/",
+      "http://localhost:4380/student/",
       {
         method: "GET",
         credentials: "include",
