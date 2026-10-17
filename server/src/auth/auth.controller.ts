@@ -19,7 +19,6 @@ export class AuthController {
     @UseGuards(AuthGuard)
     updateRole(@Req() request: any,@Body() dto: UpdateRoleDto){
         const userid = request.user.id;
-        console.log("hi")
         return this.authservice.updateRole(userid,dto)
     }
 

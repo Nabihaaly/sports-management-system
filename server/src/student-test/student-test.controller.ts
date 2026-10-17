@@ -17,7 +17,7 @@ export class StudentTestController {
   ) {}
 
   @Get('/')
-  @UseGuards(RolesGuard,AuthGuard)
+  @UseGuards(AuthGuard,RolesGuard)
   @Roles(Role.PLAYER)
   getData() {
     return this.stestservice.getData();

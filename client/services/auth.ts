@@ -1,7 +1,7 @@
 export async function getCurrentUser() {
   try {
     const response = await fetch(
-      "http://localhost:4380/auth/",
+      "http://localhost:3001/auth/",
       {
         method: "GET",
         credentials: "include",

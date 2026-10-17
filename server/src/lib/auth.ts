@@ -6,7 +6,10 @@ import { PrismaPg } from "@prisma/adapter-pg";
 const connectionString = process.env.DATABASE_URL!;
 
 const adapter = new PrismaPg({
-  connectionString,
+  connectionString: process.env.DATABASE_URL!,
+  connectionTimeoutMillis: 30000,
+  idleTimeoutMillis: 60000,
+  max: 5,
 });
 
 
@@ -37,5 +40,5 @@ export const auth = betterAuth({
   ],
 
   secret: process.env.BETTER_AUTH_SECRET!,
-  baseURL: "http://localhost:4380",
+  baseURL: "http://localhost:3001",
 });

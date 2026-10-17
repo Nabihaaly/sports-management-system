@@ -20,7 +20,7 @@ const page = () => {
         if (data.role === "PLAYER") {
           router.push("/dashboard");
         } else if (data.role === "OWNER") {
-          router.push("/venueApplications");
+          router.push("/venueApplication");
         } else {
           toast.error("User role not recognized");
         }
