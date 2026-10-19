@@ -8,14 +8,13 @@ import { auth } from "./lib/auth";
 import { AuthController } from './auth/auth.controller';
 import { AuthapiService } from './auth/auth.service';
 import { AuthApiModule } from './auth/auth.module';
-import { VenueApplicationController } from './venue-application/venue-application.controller';
-import { VenueApplicationService } from './venue-application/venue-application.service';
 import { VenueApplicationModule } from './venue-application/venue-application.module';
+import { PlayerProfileModule } from './player-profile/player-profile.module';
 
 
 @Module({
-  imports: [PrismaModule, StudentTestModule,AuthModule.forRoot({ auth }), AuthApiModule, VenueApplicationModule],
-  controllers: [AppController, AuthController, VenueApplicationController],
-  providers: [AppService, AuthapiService, VenueApplicationService],
+  imports: [PrismaModule, StudentTestModule,AuthModule.forRoot({ auth }), AuthApiModule, VenueApplicationModule, PlayerProfileModule],
+  controllers: [AppController, AuthController],
+  providers: [AppService, AuthapiService],
 })
 export class AppModule {}

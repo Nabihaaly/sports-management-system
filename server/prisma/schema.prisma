@@ -24,6 +24,7 @@ model User {
   sessions      Session[]
   accounts      Account[]
   venueOwnerPersonal VenueOwnerPersonal?
+  playerProfile      PlayerProfile?
 
   role          Role     @default(PLAYER)
 
@@ -114,6 +115,31 @@ model VenueApplicationDetails {
   courtsPriceRange       String
 
   venueOwner VenueOwnerPersonal @relation(fields: [venueOwnerId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  PRO
+}
+
+model PlayerProfile {
+  id                String      @id @default(cuid())
+  userId            String      @unique
+  displayName       String?
+  bio               String?
+  profilePicture    String?
+  city              String?
+  skillLevel        SkillLevel?
+  availability      String?
+  preferredSports   String[]
+  isProfileComplete Boolean     @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
