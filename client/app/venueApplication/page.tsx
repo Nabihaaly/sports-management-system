@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createApplication } from '../../services/venueApplication';
+import RequireRole from '@/Components/RequireRole';
 
 const Page = () => {
   const router = useRouter();
@@ -52,6 +53,9 @@ const Page = () => {
   };
 
   return (
+    <RequireRole role="OWNER">
+      
+      
     <div>
       <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-6">
         <div>
@@ -196,6 +200,8 @@ const Page = () => {
         </button>
       </form>
     </div>
+    
+    </RequireRole>
   )
 }
 
