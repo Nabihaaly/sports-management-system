@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { getApplicationStatus, OwnerStatus } from '../../services/venueApplication';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { getApplicationStatus, OwnerStatus } from "../../services/venueApplication";
 
 const POLL_INTERVAL_MS = 10000;
 
@@ -17,22 +17,18 @@ const PendingPage = () => {
 
     const check = async () => {
       try {
-        const { status } = await getApplicationStatus();
+        const { status, isVerified } = await getApplicationStatus();
         if (cancelled) return;
 
-        if (status === 'APPROVED') {
-          router.replace('/venueDashboard');
+        if (isVerified) {
+          router.replace("/venueDashboard");
           return;
         }
-        if (status === 'PENDING') {
-          router.replace('/applicationStatus');
+        if (status === null) {
+          router.replace("/venueApplication");
           return;
         }
 
-        if (status === null) {
-          router.replace('/venueApplication');
-          return;
-        }
         setStatus(status);
         setError("");
       } catch (err) {
@@ -59,14 +55,12 @@ const PendingPage = () => {
 
   return (
     <div className="max-w-xl mx-auto mt-20 text-center space-y-4">
-      {status === 'REJECTED' ? (
+      {status === "REJECTED" ? (
         <>
-          <h1 className="text-2xl font-semibold text-red-600">
-            Application rejected
-          </h1>
+          <h1 className="text-2xl font-semibold text-red-600">Application rejected</h1>
           <p>
-            Unfortunately your venue application was not approved. Please
-            contact support for more details.
+            Unfortunately your venue application was not approved. Please contact
+            support for more details.
           </p>
         </>
       ) : (
@@ -83,7 +77,4 @@ const PendingPage = () => {
   );
 };
 
-export default PendingPage
-
-
-
+export default PendingPage;

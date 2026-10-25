@@ -1,12 +1,11 @@
-
 import { ConflictException, Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { ApplicationStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateApplicationDto } from './dto/create-application.dto';
 
 @Injectable()
 export class VenueApplicationService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   async createApplication(userId: string, dto: CreateApplicationDto) {
     const { venueOwner, venueDetails } = dto;
@@ -15,12 +14,12 @@ export class VenueApplicationService {
       // Save owner information
       const owner = await this.prisma.venueOwnerPersonal.create({
         data: {
-    userId,
-    fullName: venueOwner.fullName,
-    cnic: venueOwner.cnic,
-    phoneNumber: venueOwner.phoneNumber,
-  },
-});
+          userId,
+          fullName: venueOwner.fullName,
+          cnic: venueOwner.cnic,
+          phoneNumber: venueOwner.phoneNumber,
+        },
+      });
 
       // Save venue information
       const venue = await this.prisma.venueApplicationDetails.create({
@@ -52,6 +51,9 @@ export class VenueApplicationService {
     }
   }
 
+  // Owner ki state:
+  //   isVerified = uska koi ek venue APPROVED hai (owner-level approval derive hoti hai)
+  //   status     = sabse naye venue application ka status (null = abhi koi application nahi)
   async getStatus(userId: string) {
   const owner = await this.prisma.venueOwnerPersonal.findUnique({
     where: { userId },
