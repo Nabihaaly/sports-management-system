@@ -52,6 +52,10 @@ export interface Court {
   availabilities: CourtAvailability[];
 }
 
+export interface CourtDetail extends Court {
+  venue: { id: string; venueName: string; city: string };
+}
+
 export interface OwnerVenue {
   id: string;
   venueName: string;
@@ -76,6 +80,14 @@ async function parse(response: Response) {
 
 export async function getMyVenues(): Promise<OwnerVenue[]> {
   const response = await fetch(`${API_URL}/court/venues`, {
+    method: "GET",
+    credentials: "include",
+  });
+  return parse(response);
+}
+
+export async function getCourt(courtId: string): Promise<CourtDetail> {
+  const response = await fetch(`${API_URL}/court/${courtId}`, {
     method: "GET",
     credentials: "include",
   });

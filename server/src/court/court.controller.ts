@@ -1,4 +1,11 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard, Session } from '@thallesp/nestjs-better-auth';
 import type { UserSession } from '@thallesp/nestjs-better-auth';
 import { Role } from '@prisma/client';
@@ -16,6 +23,14 @@ export class CourtController {
   @Roles(Role.OWNER)
   findMyVenues(@Session() session: UserSession) {
     return this.courtService.findMyVenues(session.user.id);
+  }
+
+  // Keep this below 'venues' so the static route is matched first
+  @Get(':id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(Role.OWNER)
+  findOne(@Session() session: UserSession, @Param('id') id: string) {
+    return this.courtService.findOne(session.user.id, id);
   }
 
   @Post('/')

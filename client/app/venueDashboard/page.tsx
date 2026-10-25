@@ -1,20 +1,12 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import AddCourts from "@/Components/AddCourt";
 import { getMyVenues, OwnerVenue } from "@/services/courts";
 
-const DAY_LABELS: Record<string, string> = {
-  MONDAY: "Mon",
-  TUESDAY: "Tue",
-  WEDNESDAY: "Wed",
-  THURSDAY: "Thu",
-  FRIDAY: "Fri",
-  SATURDAY: "Sat",
-  SUNDAY: "Sun",
-};
-
 const Page = () => {
+
   const [venues, setVenues] = useState<OwnerVenue[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [showModal, setShowModal] = useState(false);
@@ -99,32 +91,25 @@ const Page = () => {
             {selectedVenue.courts.length === 0 ? (
               <p className="text-sm">No courts added to this venue yet.</p>
             ) : (
-              selectedVenue.courts.map((court) => (
-                <div key={court.id} className="border rounded-md p-3 space-y-1">
-                  <p className="font-medium">
-                    {court.courtName} · {court.sport} · {court.courtType} · up to{" "}
-                    {court.maxPlayers} players · Rs. {court.pricePerSlotPKR}/slot
-                  </p>
-                  <p className="text-sm">
-                    {court.openingTime}-{court.closingTime} ·{" "}
-                    {court.bookingDurationMinutes} min slots ·{" "}
-                    {court.operatingDays.map((d) => DAY_LABELS[d] ?? d).join(", ")}
-                    {!court.isActive && " · Inactive"}
-                  </p>
-                  {court.description && <p className="text-sm">{court.description}</p>}
-                  {court.availabilities.length > 0 && (
-                    <p className="text-sm">
-                      Availability:{" "}
-                      {court.availabilities
-                        .map(
-                          (a) =>
-                            `${DAY_LABELS[a.dayOfWeek] ?? a.dayOfWeek} ${a.startTime}-${a.endTime}`,
-                        )
-                        .join(", ")}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {selectedVenue.courts.map((court) => (
+                  <Link
+                    key={court.id}
+                    href={`ViewCourts/${court.id}`}
+                    className="block border rounded-lg p-4 space-y-2 hover:shadow-md hover:border-black transition"
+                  >
+                    <div className="flex justify-between items-start gap-2">
+                      <h4 className="font-semibold">{court.courtName}</h4>
+                      <span className="text-xs border rounded-full px-2 py-0.5 whitespace-nowrap">
+                        {court.courtType === "INDOOR" ? "Indoor" : "Outdoor"}
+                      </span>
+                    </div>
+                    <p className="text-sm line-clamp-2">
+                      {court.description || "No description"}
                     </p>
-                  )}
-                </div>
-              ))
+                  </Link>
+                ))}
+              </div>
             )}
           </div>
         </div>

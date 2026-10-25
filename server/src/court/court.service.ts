@@ -90,6 +90,23 @@ export class CourtService {
     });
   }
 
+  // A single court, only if it belongs to one of this owner's venues
+  async findOne(userId: string, courtId: string) {
+    const court = await this.prisma.court.findFirst({
+      where: { id: courtId, venue: { venueOwner: { userId } } },
+      include: {
+        availabilities: {
+          orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+        },
+        venue: { select: { id: true, venueName: true, city: true } },
+      },
+    });
+    if (!court) {
+      throw new NotFoundException('Court not found');
+    }
+    return court;
+  }
+
   // "HH:mm" strings compare correctly as plain strings
   private validate(dto: CreateCourtDto) {
     if (dto.closingTime <= dto.openingTime) {
