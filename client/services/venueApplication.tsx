@@ -16,21 +16,22 @@ export interface VenueDetailsInput {
 }
 
 export type OwnerStatus = "PENDING" | "APPROVED" | "REJECTED";
- 
+
 export async function getApplicationStatus(): Promise<{
+  isVerified: boolean;
   status: OwnerStatus | null;
 }> {
   const response = await fetch("http://localhost:3001/venue-application/status", {
     method: "GET",
     credentials: "include",
   });
- 
+
   const data = await response.json();
- 
+
   if (!response.ok) {
     throw new Error(data?.message || "Failed to fetch status");
   }
- 
+
   return data;
 }
 
