@@ -15,7 +15,7 @@ export interface VenueDetailsInput {
   courtsPriceRange: string;
 }
 
-export type ApplicationStatus = "PENDING" | "APPROVED" | "REJECTED";
+export type ApplicationStatus = "PENDING" | "APPROVED" | "REJECTED"
  
 export async function getApplicationStatus(): Promise<{
   status: ApplicationStatus | null;
