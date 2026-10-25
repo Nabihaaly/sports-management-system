@@ -26,6 +26,7 @@ model User {
   venueOwnerPersonal VenueOwnerPersonal?
   playerProfile      PlayerProfile?
 
+
   role          Role     @default(PLAYER)
 
   @@unique([email])
@@ -80,21 +81,20 @@ model Verification {
   @@map("verification")
 }
 
-enum OwnerStatus {
+enum ApplicationStatus {
   PENDING
   APPROVED
   REJECTED
 }
 
 model VenueOwnerPersonal {
-  id          String      @id @default(cuid())
-  userId      String      @unique
+  id          String @id @default(cuid())
+  userId      String @unique
   fullName    String
-  cnic        String      @unique
+  cnic        String @unique
   phoneNumber String
-  status      OwnerStatus @default(PENDING)
 
-  user   User    @relation(fields: [userId], references: [id])
+  user   User @relation(fields: [userId], references: [id])
   venues VenueApplicationDetails[]
 
   createdAt DateTime @default(now())
@@ -105,16 +105,21 @@ model VenueApplicationDetails {
   id           String @id @default(cuid())
   venueOwnerId String
 
-  venueName              String
-  description            String?
-  address                String
-  city                   String
-  images                 String[]
-  businessRegistration  String
-  sizeOfVenue            String
-  courtsPriceRange       String
+  venueName             String
+  description           String?
+  address               String
+  city                  String
+  images                String[]
+  businessRegistration String
+  sizeOfVenue           String
+  courtsPriceRange      String
+
+  status ApplicationStatus @default(PENDING)
 
   venueOwner VenueOwnerPersonal @relation(fields: [venueOwnerId], references: [id])
+
+  courts Court[]
+
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -143,4 +148,62 @@ model PlayerProfile {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+
+enum CourtType {
+  INDOOR
+  OUTDOOR
+}
+
+model Court {
+  id                      String    @id @default(cuid())
+  venueId                 String
+
+  courtName               String
+  sport                   String
+  courtType               CourtType
+  maxPlayers              Int
+  bookingDurationMinutes  Int       @default(60)
+  description             String?
+
+  pricePerSlotPKR         Int
+
+  openingTime             String
+  closingTime             String
+  operatingDays           String[]
+
+  isActive                Boolean   @default(true)
+
+  venue VenueApplicationDetails @relation(fields: [venueId],references: [id], onDelete: Cascade)
+  availabilities CourtAvailability[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([venueId])
+}
+
+
+enum WeekDay {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+model CourtAvailability {
+  id        String   @id @default(cuid())
+  courtId   String
+  dayOfWeek WeekDay
+  startTime String
+  endTime   String
+  isActive  Boolean  @default(true)
+
+  court Court @relation(fields: [courtId],references: [id],onDelete: Cascade)
+
+  @@index([courtId, dayOfWeek])
 }

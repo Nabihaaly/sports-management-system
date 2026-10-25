@@ -1,0 +1,213 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  PLAYER
+  OWNER
+}
+
+model User {
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  venueOwnerPersonal VenueOwnerPersonal?
+  playerProfile      PlayerProfile?
+
+
+  role          Role     @default(PLAYER)
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
+
+enum ApplicationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model VenueOwnerPersonal {
+  id          String @id @default(cuid())
+  userId      String @unique
+  fullName    String
+  cnic        String @unique
+  phoneNumber String
+  isVerified  Boolean   @default(false)
+  verifiedAt  DateTime?
+
+  user   User @relation(fields: [userId], references: [id])
+  venues VenueApplicationDetails[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VenueApplicationDetails {
+  id           String @id @default(cuid())
+  venueOwnerId String
+
+  venueName             String
+  description           String?
+  address               String
+  city                  String
+  images                String[]
+  businessRegistration String
+  sizeOfVenue           String
+  courtsPriceRange      String
+
+  status ApplicationStatus @default(PENDING)
+  adminNote   String?
+  reviewedAt  DateTime?
+
+  venueOwner VenueOwnerPersonal @relation(fields: [venueOwnerId], references: [id])
+
+  courts Court[]
+
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum SkillLevel {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+  PRO
+}
+
+model PlayerProfile {
+  id                String      @id @default(cuid())
+  userId            String      @unique
+  displayName       String?
+  bio               String?
+  profilePicture    String?
+  city              String?
+  skillLevel        SkillLevel?
+  availability      String?
+  preferredSports   String[]
+  isProfileComplete Boolean     @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+enum CourtType {
+  INDOOR
+  OUTDOOR
+}
+
+model Court {
+  id                      String    @id @default(cuid())
+  venueId                 String
+
+  courtName               String
+  sport                   String
+  courtType               CourtType
+  maxPlayers              Int
+  bookingDurationMinutes  Int       @default(60)
+  description             String?
+
+  pricePerSlotPKR         Int
+
+  openingTime             String
+  closingTime             String
+  operatingDays           String[]
+
+  isActive                Boolean   @default(true)
+
+  venue VenueApplicationDetails @relation(fields: [venueId],references: [id], onDelete: Cascade)
+  availabilities CourtAvailability[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([venueId])
+}
+
+
+enum WeekDay {
+  MONDAY
+  TUESDAY
+  WEDNESDAY
+  THURSDAY
+  FRIDAY
+  SATURDAY
+  SUNDAY
+}
+
+model CourtAvailability {
+  id        String   @id @default(cuid())
+  courtId   String
+  dayOfWeek WeekDay
+  startTime String
+  endTime   String
+  isActive  Boolean  @default(true)
+
+  court Court @relation(fields: [courtId],references: [id],onDelete: Cascade)
+
+  @@index([courtId, dayOfWeek])
+}

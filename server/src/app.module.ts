@@ -4,16 +4,24 @@ import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { StudentTestModule } from './student-test/student-test.module';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
-import { auth } from "./lib/auth";
+import { auth } from './lib/auth';
 import { AuthController } from './auth/auth.controller';
 import { AuthapiService } from './auth/auth.service';
 import { AuthApiModule } from './auth/auth.module';
 import { VenueApplicationModule } from './venue-application/venue-application.module';
 import { PlayerProfileModule } from './player-profile/player-profile.module';
-
+import { AdminModule } from './admin/admin.module';
 
 @Module({
-  imports: [PrismaModule, StudentTestModule,AuthModule.forRoot({ auth }), AuthApiModule, VenueApplicationModule, PlayerProfileModule],
+  imports: [
+    PrismaModule,
+    StudentTestModule,
+    AuthModule.forRoot({ auth }),
+    AuthApiModule,
+    VenueApplicationModule,
+    PlayerProfileModule,
+    AdminModule,
+  ],
   controllers: [AppController, AuthController],
   providers: [AppService, AuthapiService],
 })
