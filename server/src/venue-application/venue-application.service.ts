@@ -53,10 +53,21 @@ export class VenueApplicationService {
   }
 
   async getStatus(userId: string) {
-    const owner = await this.prisma.venueOwnerPersonal.findUnique({
-      where: { userId },
-      select: { status: true },
-    });
-    return { status: owner?.status ?? null };
-  }
+  const owner = await this.prisma.venueOwnerPersonal.findUnique({
+    where: { userId },
+    select: {
+      venues: {
+        select: {
+          id: true,
+          venueName: true,
+          status: true,
+        },
+      },
+    },
+  });
+
+  return {
+     status: owner?.venues[0]?.status ?? null,
+  };
+}
 }
