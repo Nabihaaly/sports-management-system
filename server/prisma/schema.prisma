@@ -114,6 +114,8 @@ model VenueApplicationDetails {
   sizeOfVenue           String
   courtsPriceRange      String
 
+  isActive                Boolean   @default(true)
+
   status ApplicationStatus @default(PENDING)
 
   venueOwner VenueOwnerPersonal @relation(fields: [venueOwnerId], references: [id])

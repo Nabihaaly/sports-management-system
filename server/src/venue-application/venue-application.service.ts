@@ -55,28 +55,21 @@ export class VenueApplicationService {
   //   isVerified = uska koi ek venue APPROVED hai (owner-level approval derive hoti hai)
   //   status     = sabse naye venue application ka status (null = abhi koi application nahi)
   async getStatus(userId: string) {
-    const owner = await this.prisma.venueOwnerPersonal.findUnique({
-      where: { userId },
-      select: {
-        venues: {
-          orderBy: { createdAt: 'desc' },
-          select: { status: true },
+  const owner = await this.prisma.venueOwnerPersonal.findUnique({
+    where: { userId },
+    select: {
+      venues: {
+        select: {
+          id: true,
+          venueName: true,
+          status: true,
         },
       },
-    });
+    },
+  });
 
-    if (!owner) {
-      return { isVerified: false, status: null };
-    }
-
-    const isVerified = owner.venues.some(
-      (v) => v.status === ApplicationStatus.APPROVED,
-    );
-    const latest = owner.venues[0] ?? null;
-
-    return {
-      isVerified,
-      status: latest?.status ?? null,
-    };
-  }
+  return {
+     status: owner?.venues[0]?.status ?? null,
+  };
+}
 }
