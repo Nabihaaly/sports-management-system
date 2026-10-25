@@ -15,11 +15,11 @@ export interface VenueDetailsInput {
   courtsPriceRange: string;
 }
 
-export type OwnerStatus = "PENDING" | "APPROVED" | "REJECTED";
-
+export type ApplicationStatus = "PENDING" | "APPROVED" | "REJECTED"
+ 
 export async function getApplicationStatus(): Promise<{
   isVerified: boolean;
-  status: OwnerStatus | null;
+  status: ApplicationStatus | null;
 }> {
   const response = await fetch("http://localhost:3001/venue-application/status", {
     method: "GET",
