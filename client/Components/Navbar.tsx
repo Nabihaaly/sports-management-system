@@ -1,5 +1,6 @@
 
 "use client"
+
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSports } from '@/Context/SportsContext';
@@ -11,23 +12,25 @@ import Signout from './Signout';
 const Navbar = () => {
   const { showsignin, setshowsignin, showsignup, session, isLoggedIn } = useSports();
   const router = useRouter();
-  const [ownerStatus, setOwnerStatus] = useState<OwnerStatus | null>(null);
+
+  const [ApplicationStatus, setApplicationStatus] = useState<OwnerStatus | null>(null);
 
   const isOwner = isLoggedIn && session?.user.role === 'OWNER';
 
   useEffect(() => {
     if (!isOwner) {
-      setOwnerStatus(null);
+      setApplicationStatus(null);
       return;
     }
 
     let cancelled = false;
+
     getApplicationStatus()
       .then(({ status }) => {
-        if (!cancelled) setOwnerStatus(status);
+        if (!cancelled) setApplicationStatus(status);
       })
       .catch(() => {
-        if (!cancelled) setOwnerStatus(null);
+        if (!cancelled) setApplicationStatus(null);
       });
 
     return () => {
@@ -43,13 +46,15 @@ const Navbar = () => {
         <div>
           <p>Welcome {session?.user.name}</p>
 
-          {isOwner && (ownerStatus === 'PENDING' || ownerStatus === 'REJECTED') && (
-            <button onClick={() => router.push('/applicationStatus')}>
-              Check your status
-            </button>
-          )}
+          {isOwner &&
+            (ApplicationStatus === 'PENDING' ||
+              ApplicationStatus === 'REJECTED') && (
+              <button onClick={() => router.push('/applicationStatus')}>
+                Check your status
+              </button>
+            )}
 
-          {isOwner && (ownerStatus === null) && (
+          {isOwner && ApplicationStatus === null && (
             <button onClick={() => router.push('/venueApplication')}>
               Fill Application
             </button>
@@ -71,4 +76,4 @@ const Navbar = () => {
   );
 };
 
-export default Navbar
+export default Navbar;
