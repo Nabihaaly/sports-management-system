@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Post,
+  Put,
   UseGuards,
 } from '@nestjs/common';
 import { AuthGuard, Session } from '@thallesp/nestjs-better-auth';
@@ -31,6 +32,17 @@ export class CourtController {
   @Roles(Role.OWNER)
   findOne(@Session() session: UserSession, @Param('id') id: string) {
     return this.courtService.findOne(session.user.id, id);
+  }
+
+  @Put(':id')
+  @UseGuards(AuthGuard, RolesGuard)
+  @Roles(Role.OWNER)
+  update(
+    @Session() session: UserSession,
+    @Param('id') id: string,
+    @Body() dto: CreateCourtDto,
+  ) {
+    return this.courtService.update(session.user.id, id, dto);
   }
 
   @Post('/')

@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { createCourt, CourtType, WeekDay } from "@/services/courts";
+import {
+  Court,
+  createCourt,
+  CourtType,
+  updateCourt,
+  WeekDay,
+} from "@/services/courts";
 
 const SPORTS = [
   "Cricket",
@@ -30,6 +36,8 @@ type Schedule = Partial<Record<WeekDay, Slot[]>>;
 interface Props {
   venueId: string;
   venueName: string;
+  // When provided, the form edits this court instead of creating a new one
+  court?: Court;
   onClose: () => void;
   onCreated: () => void;
 }
@@ -42,22 +50,53 @@ const toMinutes = (t: string) => {
 const toTime = (mins: number) =>
   `${String(Math.floor(mins / 60)).padStart(2, "0")}:${String(mins % 60).padStart(2, "0")}`;
 
-const AddCourts = ({ venueId, venueName, onClose, onCreated }: Props) => {
-  const [courtName, setCourtName] = useState("");
-  const [sport, setSport] = useState(SPORTS[0]);
-  const [courtType, setCourtType] = useState<CourtType>("OUTDOOR");
-  const [maxPlayers, setMaxPlayers] = useState("");
-  const [bookingDurationMinutes, setBookingDurationMinutes] = useState("60");
-  const [pricePerSlotPKR, setPricePerSlotPKR] = useState("");
-  const [openingTime, setOpeningTime] = useState("09:00");
-  const [closingTime, setClosingTime] = useState("22:00");
-  const [description, setDescription] = useState("");
-  const [isActive, setIsActive] = useState(true);
-  const [operatingDays, setOperatingDays] = useState<WeekDay[]>(
-    WEEKDAYS.map((d) => d.value),
+// Group a court's saved slots by day for the schedule builder
+const scheduleFromCourt = (court?: Court): Schedule => {
+  const result: Schedule = {};
+  for (const a of court?.availabilities ?? []) {
+    if (a.isActive === false) continue;
+    (result[a.dayOfWeek] ??= []).push({
+      startTime: a.startTime,
+      endTime: a.endTime,
+    });
+  }
+  for (const day of Object.keys(result) as WeekDay[]) {
+    result[day]!.sort((a, b) => a.startTime.localeCompare(b.startTime));
+  }
+  return result;
+};
+
+const AddCourts = ({ venueId, venueName, court, onClose, onCreated }: Props) => {
+  const isEditing = !!court;
+
+  const [courtName, setCourtName] = useState(court?.courtName ?? "");
+  const [sport, setSport] = useState(court?.sport ?? SPORTS[0]);
+  const [courtType, setCourtType] = useState<CourtType>(
+    court?.courtType ?? "OUTDOOR",
   );
-  const [schedule, setSchedule] = useState<Schedule>({});
-  const [activeDay, setActiveDay] = useState<WeekDay>("MONDAY");
+  const [maxPlayers, setMaxPlayers] = useState(
+    court ? String(court.maxPlayers) : "",
+  );
+  const [bookingDurationMinutes, setBookingDurationMinutes] = useState(
+    court ? String(court.bookingDurationMinutes) : "60",
+  );
+  const [pricePerSlotPKR, setPricePerSlotPKR] = useState(
+    court ? String(court.pricePerSlotPKR) : "",
+  );
+  const [openingTime, setOpeningTime] = useState(court?.openingTime ?? "09:00");
+  const [closingTime, setClosingTime] = useState(court?.closingTime ?? "22:00");
+  const [description, setDescription] = useState(court?.description ?? "");
+  const [isActive, setIsActive] = useState(court?.isActive ?? true);
+  const [operatingDays, setOperatingDays] = useState<WeekDay[]>(
+    court?.operatingDays ?? WEEKDAYS.map((d) => d.value),
+  );
+  const [schedule, setSchedule] = useState<Schedule>(() =>
+    scheduleFromCourt(court),
+  );
+  const [activeDay, setActiveDay] = useState<WeekDay>(
+    WEEKDAYS.find((d) => (court?.operatingDays ?? []).includes(d.value))
+      ?.value ?? "MONDAY",
+  );
   const [copyTargets, setCopyTargets] = useState<WeekDay[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -196,7 +235,7 @@ const AddCourts = ({ venueId, venueName, onClose, onCreated }: Props) => {
 
     setLoading(true);
     try {
-      await createCourt({
+      const payload = {
         venueId,
         courtName,
         sport,
@@ -210,7 +249,12 @@ const AddCourts = ({ venueId, venueName, onClose, onCreated }: Props) => {
         operatingDays,
         isActive,
         availabilities,
-      });
+      };
+      if (court) {
+        await updateCourt(court.id, payload);
+      } else {
+        await createCourt(payload);
+      }
       onCreated();
       onClose();
     } catch (err) {
@@ -227,8 +271,12 @@ const AddCourts = ({ venueId, venueName, onClose, onCreated }: Props) => {
       <div className="bg-white rounded-lg w-full max-w-3xl mx-auto my-8 p-6">
         <div className="flex justify-between items-start mb-4">
           <div>
-            <h2 className="text-xl font-semibold">Add Court</h2>
-            <p className="text-sm">Adding to: {venueName}</p>
+            <h2 className="text-xl font-semibold">
+              {isEditing ? "Edit Court" : "Add Court"}
+            </h2>
+            <p className="text-sm">
+              {isEditing ? "Editing court at" : "Adding to"}: {venueName}
+            </p>
           </div>
           <button type="button" onClick={onClose} className="text-2xl leading-none">
             &times;
@@ -522,7 +570,7 @@ const AddCourts = ({ venueId, venueName, onClose, onCreated }: Props) => {
               disabled={loading}
               className="bg-black text-white rounded-md px-4 py-2 disabled:opacity-50"
             >
-              {loading ? "Saving..." : "Save court"}
+              {loading ? "Saving..." : isEditing ? "Save changes" : "Save court"}
             </button>
           </div>
         </form>

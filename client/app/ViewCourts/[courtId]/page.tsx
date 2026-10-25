@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import AddCourts from "@/Components/AddCourt";
 import { CourtDetail, getCourt, WeekDay } from "@/services/courts";
 
 const DAYS: { value: WeekDay; label: string; short: string }[] = [
@@ -42,15 +43,23 @@ const Page = () => {
   const [error, setError] = useState("");
   const [selectedDay, setSelectedDay] = useState<WeekDay | "">("");
 
-  useEffect(() => {
+  const [showEdit, setShowEdit] = useState(false);
+
+  const loadCourt = useCallback(async () => {
     if (!courtId) return;
-    getCourt(courtId)
-      .then(setCourt)
-      .catch((err) =>
-        setError(err instanceof Error ? err.message : "Failed to load court"),
-      )
-      .finally(() => setLoading(false));
+    try {
+      setCourt(await getCourt(courtId));
+      setError("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load court");
+    } finally {
+      setLoading(false);
+    }
   }, [courtId]);
+
+  useEffect(() => {
+    loadCourt();
+  }, [loadCourt]);
 
   // Availability: only active slots, only days that have slots
   const activeSlots = (court?.availabilities ?? []).filter(
@@ -68,9 +77,19 @@ const Page = () => {
 
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-6">
-      <button onClick={() => router.back()} className="underline text-sm">
-        &larr; Back to courts
-      </button>
+      <div className="flex justify-between items-center">
+        <button onClick={() => router.back()} className="underline text-sm">
+          &larr; Back to courts
+        </button>
+        {court && (
+          <button
+            onClick={() => setShowEdit(true)}
+            className="bg-black text-white rounded-md px-4 py-2"
+          >
+            Edit court
+          </button>
+        )}
+      </div>
 
       {loading && <p>Loading court...</p>}
       {error && <p className="text-red-600">{error}</p>}
@@ -162,6 +181,16 @@ const Page = () => {
             )}
           </div>
         </>
+      )}
+
+      {showEdit && court && (
+        <AddCourts
+          venueId={court.venue.id}
+          venueName={court.venue.venueName}
+          court={court}
+          onClose={() => setShowEdit(false)}
+          onCreated={loadCourt}
+        />
       )}
     </div>
   );

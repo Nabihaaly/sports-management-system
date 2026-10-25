@@ -90,6 +90,46 @@ export class CourtService {
     });
   }
 
+  async update(userId: string, courtId: string, dto: CreateCourtDto) {
+    const existing = await this.prisma.court.findFirst({
+      where: { id: courtId, venue: { venueOwner: { userId } } },
+      select: { id: true },
+    });
+    if (!existing) {
+      throw new NotFoundException('Court not found');
+    }
+
+    this.validate(dto);
+
+    // The venue never changes. The submitted schedule replaces the old one
+    // (deleteMany + create run together in a single update).
+    return this.prisma.court.update({
+      where: { id: existing.id },
+      data: {
+        courtName: dto.courtName,
+        sport: dto.sport,
+        courtType: dto.courtType,
+        maxPlayers: dto.maxPlayers,
+        bookingDurationMinutes: dto.bookingDurationMinutes ?? 60,
+        description: dto.description ?? null,
+        pricePerSlotPKR: dto.pricePerSlotPKR,
+        openingTime: dto.openingTime,
+        closingTime: dto.closingTime,
+        operatingDays: dto.operatingDays,
+        isActive: dto.isActive ?? true,
+        availabilities: {
+          deleteMany: {},
+          create: dto.availabilities!.map((w) => ({
+            dayOfWeek: w.dayOfWeek,
+            startTime: w.startTime,
+            endTime: w.endTime,
+          })),
+        },
+      },
+      include: { availabilities: true },
+    });
+  }
+
   // A single court, only if it belongs to one of this owner's venues
   async findOne(userId: string, courtId: string) {
     const court = await this.prisma.court.findFirst({

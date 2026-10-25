@@ -94,6 +94,16 @@ export async function getCourt(courtId: string): Promise<CourtDetail> {
   return parse(response);
 }
 
+export async function updateCourt(courtId: string, court: CourtInput) {
+  const response = await fetch(`${API_URL}/court/${courtId}`, {
+    method: "PUT",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(court),
+  });
+  return parse(response);
+}
+
 export async function createCourt(court: CourtInput) {
   const response = await fetch(`${API_URL}/court`, {
     method: "POST",
