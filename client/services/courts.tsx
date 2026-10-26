@@ -64,6 +64,7 @@ export interface OwnerVenue {
   city: string;
   sizeOfVenue: string;
   courtsPriceRange: string;
+  isActive: boolean;
   courts: Court[];
 }
 
@@ -91,6 +92,20 @@ export async function getCourt(courtId: string): Promise<CourtDetail> {
     method: "GET",
     credentials: "include",
   });
+  return parse(response);
+}
+
+// Activates or deactivates a venue together with all of its courts
+export async function setVenueActive(venueId: string, isActive: boolean) {
+  const response = await fetch(
+    `${API_URL}/venue-application/${venueId}/active`,
+    {
+      method: "PATCH",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isActive }),
+    },
+  );
   return parse(response);
 }
 
