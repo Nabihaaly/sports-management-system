@@ -10,12 +10,6 @@ import { AuthapiService } from './auth/auth.service';
 import { AuthApiModule } from './auth/auth.module';
 import { VenueApplicationModule } from './venue-application/venue-application.module';
 import { CourtModule } from './court/court.module';
-
-
-@Module({
-  imports: [PrismaModule, StudentTestModule,AuthModule.forRoot({ auth }), AuthApiModule, VenueApplicationModule, CourtModule],
-  controllers: [AppController, AuthController, VenueApplicationController],
-  providers: [AppService, AuthapiService, VenueApplicationService],
 import { PlayerProfileModule } from './player-profile/player-profile.module';
 import { AdminModule } from './admin/admin.module';
 
@@ -26,6 +20,7 @@ import { AdminModule } from './admin/admin.module';
     AuthModule.forRoot({ auth }),
     AuthApiModule,
     VenueApplicationModule,
+    CourtModule,
     PlayerProfileModule,
     AdminModule,
   ],
