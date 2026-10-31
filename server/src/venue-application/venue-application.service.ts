@@ -1,4 +1,8 @@
-import { ConflictException, Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { ApplicationStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateApplicationDto } from './dto/create-application.dto';
@@ -55,21 +59,51 @@ export class VenueApplicationService {
   //   isVerified = uska koi ek venue APPROVED hai (owner-level approval derive hoti hai)
   //   status     = sabse naye venue application ka status (null = abhi koi application nahi)
   async getStatus(userId: string) {
-  const owner = await this.prisma.venueOwnerPersonal.findUnique({
-    where: { userId },
-    select: {
-      venues: {
-        select: {
-          id: true,
-          venueName: true,
-          status: true,
+    const owner = await this.prisma.venueOwnerPersonal.findUnique({
+      where: { userId },
+      select: {
+        venues: {
+          select: {
+            id: true,
+            venueName: true,
+            status: true,
+          },
         },
       },
-    },
-  });
+    });
 
-  return {
-     status: owner?.venues[0]?.status ?? null,
-  };
-}
+    return {
+      status: owner?.venues[0]?.status ?? null,
+    };
+  }
+
+  // Activate / deactivate an approved venue together with all of its courts.
+  // Both updates run in one transaction so they never get out of sync.
+  async setVenueActive(userId: string, venueId: string, isActive: boolean) {
+    const venue = await this.prisma.venueApplicationDetails.findFirst({
+      where: {
+        id: venueId,
+        venueOwner: { userId },
+        status: ApplicationStatus.APPROVED,
+      },
+      select: { id: true },
+    });
+    if (!venue) {
+      throw new NotFoundException('Approved venue not found');
+    }
+
+    const [updatedVenue] = await this.prisma.$transaction([
+      this.prisma.venueApplicationDetails.update({
+        where: { id: venue.id },
+        data: { isActive },
+        select: { id: true, isActive: true },
+      }),
+      this.prisma.court.updateMany({
+        where: { venueId: venue.id },
+        data: { isActive },
+      }),
+    ]);
+
+    return updatedVenue;
+  }
 }

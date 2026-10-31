@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import AddCourts from "@/Components/AddCourt";
-import { getMyVenues, OwnerVenue } from "@/services/courts";
+import { getMyVenues, OwnerVenue, setVenueActive } from "@/services/courts";
 
 const Page = () => {
 
@@ -11,6 +11,7 @@ const Page = () => {
   const [selectedId, setSelectedId] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [toggling, setToggling] = useState(false);
   const [error, setError] = useState("");
 
   const loadVenues = useCallback(async () => {
@@ -35,6 +36,25 @@ const Page = () => {
 
   const selectedVenue = venues.find((v) => v.id === selectedId);
 
+  const toggleVenueActive = async () => {
+    if (!selectedVenue) return;
+    const next = !selectedVenue.isActive;
+    const message = next
+      ? `Activate "${selectedVenue.venueName}" and all its courts?`
+      : `Deactivate "${selectedVenue.venueName}" and all its courts?`;
+    if (!window.confirm(message)) return;
+
+    setToggling(true);
+    try {
+      await setVenueActive(selectedVenue.id, next);
+      await loadVenues();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong");
+    } finally {
+      setToggling(false);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-4 space-y-6">
       <div className="flex flex-wrap justify-between items-center gap-4">
@@ -50,6 +70,7 @@ const Page = () => {
               {venues.map((venue) => (
                 <option key={venue.id} value={venue.id}>
                   {venue.venueName} ({venue.city})
+                  {!venue.isActive ? " - Inactive" : ""}
                 </option>
               ))}
             </select>
@@ -57,7 +78,7 @@ const Page = () => {
 
           <button
             onClick={() => setShowModal(true)}
-            disabled={!selectedVenue}
+            disabled={!selectedVenue || !selectedVenue.isActive}
             className="bg-black text-white rounded-md px-4 py-2 disabled:opacity-50"
           >
             Add court
@@ -73,16 +94,41 @@ const Page = () => {
 
       {selectedVenue && (
         <div className="border rounded-md p-4 space-y-4">
-          <div className="space-y-1">
-            <h2 className="text-lg font-semibold">{selectedVenue.venueName}</h2>
-            <p>
-              {selectedVenue.address}, {selectedVenue.city}
-            </p>
-            {selectedVenue.description && <p>{selectedVenue.description}</p>}
-            <p className="text-sm">
-              Size: {selectedVenue.sizeOfVenue} · Price range:{" "}
-              {selectedVenue.courtsPriceRange}
-            </p>
+          <div className="flex flex-wrap justify-between items-start gap-3">
+            <div className="space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-lg font-semibold">{selectedVenue.venueName}</h2>
+                {!selectedVenue.isActive && (
+                  <span className="text-xs border border-red-600 text-red-600 rounded-full px-2 py-0.5">
+                    Inactive
+                  </span>
+                )}
+              </div>
+              <p>
+                {selectedVenue.address}, {selectedVenue.city}
+              </p>
+              {selectedVenue.description && <p>{selectedVenue.description}</p>}
+              <p className="text-sm">
+                Size: {selectedVenue.sizeOfVenue} · Price range:{" "}
+                {selectedVenue.courtsPriceRange}
+              </p>
+            </div>
+
+            <button
+              onClick={toggleVenueActive}
+              disabled={toggling}
+              className={`border rounded-md px-4 py-2 disabled:opacity-50 ${
+                selectedVenue.isActive
+                  ? "border-red-600 text-red-600"
+                  : "border-black"
+              }`}
+            >
+              {toggling
+                ? "Updating..."
+                : selectedVenue.isActive
+                  ? "Deactivate venue"
+                  : "Activate venue"}
+            </button>
           </div>
 
           <div className="space-y-2">
@@ -96,7 +142,9 @@ const Page = () => {
                   <Link
                     key={court.id}
                     href={`ViewCourts/${court.id}`}
-                    className="block border rounded-lg p-4 space-y-2 hover:shadow-md hover:border-black transition"
+                    className={`block border rounded-lg p-4 space-y-2 hover:shadow-md hover:border-black transition ${
+                      !court.isActive ? "opacity-60" : ""
+                    }`}
                   >
                     <div className="flex justify-between items-start gap-2">
                       <h4 className="font-semibold">{court.courtName}</h4>
