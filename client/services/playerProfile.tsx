@@ -1,69 +1,134 @@
-export type SkillLevel = "BEGINNER" | "INTERMEDIATE" | "ADVANCED" | "PRO";
+
+export type SkillLevel =
+  | "BEGINNER"
+  | "INTERMEDIATE"
+  | "ADVANCED"
+  | "PRO";
 
 export interface PlayerProfile {
   id: string;
   userId: string;
-  displayName: string | null;
+  displayName: string;
   bio: string | null;
   profilePicture: string | null;
-  city: string | null;
+  city: string;
   skillLevel: SkillLevel | null;
-  availability: string | null;
+  availableForMatching: boolean;
   preferredSports: string[];
   isProfileComplete: boolean;
 }
 
-// PATCH body — profilePicture nahi, wo upload endpoint se set hoti hai
+export interface PlayerSearchResult {
+  id: string;
+  displayName: string;
+  city: string;
+  profilePicture: string | null;
+  skillLevel: SkillLevel | null;
+  preferredSports: string[];
+  availableForMatching: boolean;
+}
+
 export type UpdateProfileInput = Partial<
-  Omit<PlayerProfile, "id" | "userId" | "isProfileComplete" | "profilePicture">
+  Omit<PlayerProfile, "id" | "userId" | "isProfileComplete">
 >;
 
 const BASE = "http://localhost:3001/player-profile";
 
-async function parse(response: Response) {
-  const data = await response.json().catch(() => ({}));
+// Get logged-in player's own profile
+export async function getProfile(): Promise<{
+  profile: PlayerProfile | null;
+}> {
+  const response = await fetch(BASE, {
+    method: "GET",
+    credentials: "include",
+  });
+
+  const data = await response.json();
+
   if (!response.ok) {
-    const message = Array.isArray(data?.message)
-      ? data.message.join(", ")
-      : data?.message || "Request failed";
-    throw new Error(message);
+    throw new Error(data?.message || "Failed to fetch profile");
   }
+
   return data;
 }
 
-export async function getProfile(): Promise<{ profile: PlayerProfile | null }> {
-  const response = await fetch(BASE, { method: "GET", credentials: "include" });
-  return parse(response);
-}
-
+// Create or update logged-in player's profile
 export async function updateProfile(
   input: UpdateProfileInput,
 ): Promise<{ profile: PlayerProfile }> {
   const response = await fetch(BASE, {
     method: "PATCH",
     credentials: "include",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+    },
     body: JSON.stringify(input),
   });
-  return parse(response);
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    const message = Array.isArray(data?.message)
+      ? data.message.join(", ")
+      : data?.message || "Failed to update profile";
+
+    throw new Error(message);
+  }
+
+  return data;
 }
 
-// multipart — Content-Type header MAT likho, browser boundary ke saath khud lagata hai
-export async function uploadProfilePicture(file: File): Promise<{ profile: PlayerProfile }> {
-  const form = new FormData();
-  form.append("file", file);
-  const response = await fetch(`${BASE}/picture`, {
-    method: "POST",
-    credentials: "include",
-    body: form,
-  });
-  return parse(response);
+// Search other players by their display name
+export async function searchPlayers(
+  name: string,
+): Promise<{ players: PlayerSearchResult[] }> {
+  const response = await fetch(
+    `${BASE}/search?name=${encodeURIComponent(name)}`,
+    {
+      method: "GET",
+      credentials: "include",
+    },
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data?.message || "Failed to search players");
+  }
+
+  return data;
 }
 
-export async function removeProfilePicture(): Promise<{ profile: PlayerProfile | null }> {
-  const response = await fetch(`${BASE}/picture`, {
-    method: "DELETE",
-    credentials: "include",
-  });
-  return parse(response);
+export interface PublicPlayerProfile {
+  id: string;
+  displayName: string;
+  city: string;
+  bio: string | null;
+  profilePicture: string | null;
+  skillLevel: SkillLevel | null;
+  preferredSports: string[];
+  availableForMatching: boolean;
+}
+
+// Get another player's public profile
+export async function getPublicProfile(
+  profileId: string,
+): Promise<{ profile: PublicPlayerProfile }> {
+  const response = await fetch(
+    `${BASE}/${encodeURIComponent(profileId)}`,
+    {
+      method: "GET",
+      credentials: "include",
+    },
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data?.message || "Failed to fetch player profile",
+    );
+  }
+
+  return data;
 }

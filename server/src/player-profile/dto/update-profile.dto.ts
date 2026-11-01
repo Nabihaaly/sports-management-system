@@ -1,6 +1,8 @@
+
 import { SkillLevel } from '@prisma/client';
 import {
   IsArray,
+  IsBoolean,
   IsEnum,
   IsOptional,
   IsString,
@@ -9,7 +11,6 @@ import {
 } from 'class-validator';
 
 export class UpdateProfileDto {
-  @IsOptional()
   @IsString()
   @MaxLength(50)
   displayName?: string;
@@ -20,6 +21,9 @@ export class UpdateProfileDto {
   bio?: string;
 
   @IsOptional()
+  @IsUrl({ require_tld: false })
+  profilePicture?: string;
+
   @IsString()
   city?: string;
 
@@ -28,8 +32,8 @@ export class UpdateProfileDto {
   skillLevel?: SkillLevel;
 
   @IsOptional()
-  @IsString()
-  availability?: string;
+  @IsBoolean()
+  availableForMatching?: boolean;
 
   @IsOptional()
   @IsArray()

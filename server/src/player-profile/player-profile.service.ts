@@ -1,4 +1,10 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+
 import { PrismaService } from '../prisma/prisma.service';
 import { StorageService } from '../storage/storage.service';
 import { assertImage, imagePath, IMAGE_BUCKET } from '../storage/image.util';
@@ -11,84 +17,124 @@ export class PlayerProfileService {
     private storage: StorageService,
   ) {}
 
+  // Get logged-in player's profile
   async getProfile(userId: string) {
     const profile = await this.prisma.playerProfile.findUnique({
       where: { userId },
     });
-    // null = profile abhi tak nahi bana (Skip for now case)
+
+    // null means profile has not been created yet
     return { profile };
   }
 
+  // Search other players by display name
+  async searchPlayers(userId: string, name: string) {
+    const searchName = name?.trim();
+
+    if (!searchName) {
+      return { players: [] };
+    }
+
+    const players = await this.prisma.playerProfile.findMany({
+      where: {
+        userId: {
+          not: userId,
+        },
+
+        displayName: {
+          contains: searchName,
+          mode: 'insensitive',
+        },
+      },
+
+      select: {
+        id: true,
+        displayName: true,
+        city: true,
+        profilePicture: true,
+        skillLevel: true,
+        preferredSports: true,
+        availableForMatching: true,
+      },
+
+      take: 20,
+      orderBy: {
+        displayName: 'asc',
+      },
+    });
+
+    return { players };
+  }
+
+  // Create or update player profile
   async updateProfile(userId: string, dto: UpdateProfileDto) {
     const existing = await this.prisma.playerProfile.findUnique({
       where: { userId },
     });
 
-    const merged = { ...existing, ...dto };
-    const isProfileComplete = Boolean(
-      merged.displayName && merged.city && merged.skillLevel,
-    );
+    // Get required fields from new data or existing profile
+    const displayName = dto.displayName ?? existing?.displayName;
+    const city = dto.city ?? existing?.city;
 
-    const profile = await this.prisma.playerProfile.upsert({
-      where: { userId },
-      create: { userId, ...dto, isProfileComplete },
-      update: { ...dto, isProfileComplete },
-    });
-
-    return { profile };
-  }
-
-  // Profile picture upload: validate → Supabase → URL save → purani file delete
-  async uploadPicture(userId: string, file?: Express.Multer.File) {
-    if (!file) {
-      throw new BadRequestException('No file uploaded (field name: file)');
+    // Require display name and city
+    if (!displayName?.trim() || !city?.trim()) {
+      throw new BadRequestException(
+        'Display name and home city are required.',
+      );
     }
-    const { contentType, ext } = assertImage(file);
 
-    const existing = await this.prisma.playerProfile.findUnique({
-      where: { userId },
-      select: { profilePicture: true },
-    });
-
-    const url = await this.storage.upload(
-      IMAGE_BUCKET,
-      imagePath(`profiles/${userId}`, ext),
-      file.buffer,
-      contentType,
+    const isProfileComplete = Boolean(
+      displayName.trim() && city.trim(),
     );
 
-    // upsert: Skip wale user ki profile row abhi na ho to ban jaye
     const profile = await this.prisma.playerProfile.upsert({
       where: { userId },
-      create: { userId, profilePicture: url },
-      update: { profilePicture: url },
-    });
 
-    // Purani picture sirf tab delete jab wo humari bucket ki thi
-    // (purane text-URL wale profiles ke liye pathFromUrl null dega → skip)
-    const oldPath =
-      existing?.profilePicture &&
-      this.storage.pathFromUrl(IMAGE_BUCKET, existing.profilePicture);
-    if (oldPath) await this.storage.remove(IMAGE_BUCKET, oldPath);
+      create: {
+        userId,
+        displayName: displayName.trim(),
+        city: city.trim(),
+        bio: dto.bio,
+        profilePicture: dto.profilePicture,
+        skillLevel: dto.skillLevel,
+        availableForMatching: dto.availableForMatching ?? false,
+        preferredSports: dto.preferredSports ?? [],
+        isProfileComplete,
+      },
+
+      update: {
+        ...dto,
+        displayName: displayName.trim(),
+        city: city.trim(),
+        isProfileComplete,
+      },
+    });
 
     return { profile };
   }
 
-  async removePicture(userId: string) {
-    const existing = await this.prisma.playerProfile.findUnique({
-      where: { userId },
-      select: { profilePicture: true },
-    });
-    if (!existing?.profilePicture) return this.getProfile(userId);
+  // Get another player's public profile
+async getPublicProfile(profileId: string) {
+  const profile = await this.prisma.playerProfile.findUnique({
+    where: {
+      id: profileId,
+    },
+    select: {
+      id: true,
+      displayName: true,
+      city: true,
+      bio: true,
+      profilePicture: true,
+      skillLevel: true,
+      preferredSports: true,
+      availableForMatching: true,
+    },
+  });
 
-    const profile = await this.prisma.playerProfile.update({
-      where: { userId },
-      data: { profilePicture: null },
-    });
-
-    const oldPath = this.storage.pathFromUrl(IMAGE_BUCKET, existing.profilePicture);
-    if (oldPath) await this.storage.remove(IMAGE_BUCKET, oldPath);
-
-    return { profile };
+  if (!profile) {
+    throw new NotFoundException('Player profile not found');
   }
+
+  return { profile };
+}
 }

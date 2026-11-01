@@ -20,7 +20,7 @@ const page = () => {
       const data = await updateRole(role);
       setrole("");
 
-      const route = await getHomeRoute(data.role);
+      const route = await getHomeRoute(data.role,true);
       router.push(route);
     } catch (error) {
       toast.error("Could not save role");
