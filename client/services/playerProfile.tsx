@@ -13,17 +13,27 @@ export interface PlayerProfile {
   isProfileComplete: boolean;
 }
 
+// PATCH body — profilePicture nahi, wo upload endpoint se set hoti hai
 export type UpdateProfileInput = Partial<
-  Omit<PlayerProfile, "id" | "userId" | "isProfileComplete"> // Omit ka matlab hai existing type se kuch fields hata dena., ||  Partial baqi tamam fields ko optional bana deta hai.
+  Omit<PlayerProfile, "id" | "userId" | "isProfileComplete" | "profilePicture">
 >;
 
 const BASE = "http://localhost:3001/player-profile";
 
+async function parse(response: Response) {
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = Array.isArray(data?.message)
+      ? data.message.join(", ")
+      : data?.message || "Request failed";
+    throw new Error(message);
+  }
+  return data;
+}
+
 export async function getProfile(): Promise<{ profile: PlayerProfile | null }> {
   const response = await fetch(BASE, { method: "GET", credentials: "include" });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data?.message || "Failed to fetch profile");
-  return data;
+  return parse(response);
 }
 
 export async function updateProfile(
@@ -35,12 +45,25 @@ export async function updateProfile(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
   });
-  const data = await response.json();
-  if (!response.ok) {
-    const message = Array.isArray(data?.message)
-      ? data.message.join(", ")
-      : data?.message || "Failed to update profile";
-    throw new Error(message);
-  }
-  return data;
+  return parse(response);
+}
+
+// multipart — Content-Type header MAT likho, browser boundary ke saath khud lagata hai
+export async function uploadProfilePicture(file: File): Promise<{ profile: PlayerProfile }> {
+  const form = new FormData();
+  form.append("file", file);
+  const response = await fetch(`${BASE}/picture`, {
+    method: "POST",
+    credentials: "include",
+    body: form,
+  });
+  return parse(response);
+}
+
+export async function removeProfilePicture(): Promise<{ profile: PlayerProfile | null }> {
+  const response = await fetch(`${BASE}/picture`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  return parse(response);
 }

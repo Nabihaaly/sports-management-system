@@ -20,10 +20,6 @@ export class UpdateProfileDto {
   bio?: string;
 
   @IsOptional()
-  @IsUrl({ require_tld: false })
-  profilePicture?: string;
-
-  @IsOptional()
   @IsString()
   city?: string;
 

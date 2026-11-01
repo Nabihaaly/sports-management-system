@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import AddCourts from "@/Components/AddCourt";
 import { CourtDetail, getCourt, WeekDay } from "@/services/courts";
+import Court3DViewer from "@/Components/Court3DViewer";
+import CourtModelUpload from "@/Components/CourtModelUpload";
 
 const DAYS: { value: WeekDay; label: string; short: string }[] = [
   { value: "MONDAY", label: "Monday", short: "Mon" },
@@ -112,6 +114,31 @@ const Page = () => {
               {court.venue.venueName} · {court.venue.city}
             </p>
             {court.description && <p className="pt-2">{court.description}</p>}
+          </div>
+
+          <div className="border rounded-lg p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div>
+                <h2 className="font-semibold">3D view</h2>
+                {!court.model3dUrl && (
+                  <p className="text-xs text-gray-500">
+                    Optional — let players walk through your court before booking.
+                  </p>
+                )}
+              </div>
+              <CourtModelUpload
+                courtId={court.id}
+                hasModel={!!court.model3dUrl}
+                onChanged={loadCourt}
+              />
+            </div>
+
+            {court.model3dUrl && (
+              <Court3DViewer
+                src={court.model3dUrl}
+                alt={`3D view of ${court.courtName}`}
+              />
+            )}
           </div>
 
           <div className="border rounded-lg p-4 space-y-4">

@@ -2,25 +2,29 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { getApplicationStatus, OwnerStatus } from "../../services/venueApplication";
+import {
+  getApplicationStatus,
+  ApplicationStatus,
+} from "../../services/venueApplication";
 
 const POLL_INTERVAL_MS = 10000;
 
 const PendingPage = () => {
   const router = useRouter();
-  const [status, setStatus] = useState<OwnerStatus | null>(null);
+  const [status, setStatus] = useState<ApplicationStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  // Har 10 sec status poll karo; admin approve kare to agle tick pe dashboard.
   useEffect(() => {
     let cancelled = false;
 
     const check = async () => {
       try {
-        const { status, isVerified } = await getApplicationStatus();
+        const { status } = await getApplicationStatus();
         if (cancelled) return;
 
-        if (isVerified) {
+        if (status === "APPROVED") {
           router.replace("/venueDashboard");
           return;
         }
@@ -29,7 +33,7 @@ const PendingPage = () => {
           return;
         }
 
-        setStatus(status);
+        setStatus(status); // PENDING ya REJECTED — yahin dikhao
         setError("");
       } catch (err) {
         if (!cancelled) {

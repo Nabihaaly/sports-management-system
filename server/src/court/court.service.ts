@@ -6,10 +6,14 @@ import {
 import { ApplicationStatus, WeekDay } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCourtDto } from './dto/create-dto';
+import { StorageService } from '../storage/storage.service';
+
+const MODEL_BUCKET = 'court-models';
 
 @Injectable()
 export class CourtService {
-  constructor(private prisma: PrismaService) {}
+
+  constructor(private prisma: PrismaService, private storage: StorageService) {}
 
   // The owner's approved venues, each with its courts and availability
   async findMyVenues(userId: string) {
@@ -198,4 +202,62 @@ export class CourtService {
       }
     }
   }
+  
+// Owner apne court ka 3D scan (.glb) upload karta hai
+async uploadModel(userId: string, courtId: string, file?: Express.Multer.File) {
+  if (!file) throw new BadRequestException('No file uploaded (field name: file)');
+
+  // Extension + magic bytes dono check — sirf naam pe bharosa nahi.
+  // Har valid .glb file "glTF" ascii se shuru hoti hai.
+  const isGlbName = file.originalname.toLowerCase().endsWith('.glb');
+  const isGlbMagic = file.buffer.subarray(0, 4).toString('ascii') === 'glTF';
+  if (!isGlbName || !isGlbMagic) {
+    throw new BadRequestException('Only .glb (binary glTF) files are allowed');
+  }
+
+  const court = await this.prisma.court.findFirst({
+    where: { id: courtId, venue: { venueOwner: { userId } } }, // ownership
+    select: { id: true, model3dUrl: true },
+  });
+  if (!court) throw new NotFoundException('Court not found');
+
+  // Path: courts/<courtId>/<timestamp>.glb — timestamp se browser cache bhi bust hota hai
+  const path = `courts/${court.id}/${Date.now()}.glb`;
+  const url = await this.storage.upload(MODEL_BUCKET, path, file.buffer, 'model/gltf-binary');
+
+  const updated = await this.prisma.court.update({
+    where: { id: court.id },
+    data: { model3dUrl: url },
+    select: { id: true, model3dUrl: true },
+  });
+
+  // Purani file saaf karo (storage quota bachao) — DB update ke BAAD, taake fail ho to bhi naya URL save ho
+  if (court.model3dUrl) {
+    const oldPath = this.storage.pathFromUrl(MODEL_BUCKET, court.model3dUrl);
+    if (oldPath) await this.storage.remove(MODEL_BUCKET, oldPath);
+  }
+
+  return updated;
+}
+
+// Scan hatao → court wapas default template pe
+async removeModel(userId: string, courtId: string) {
+  const court = await this.prisma.court.findFirst({
+    where: { id: courtId, venue: { venueOwner: { userId } } },
+    select: { id: true, model3dUrl: true },
+  });
+  if (!court) throw new NotFoundException('Court not found');
+  if (!court.model3dUrl) return { id: court.id, model3dUrl: null };
+
+  const updated = await this.prisma.court.update({
+    where: { id: court.id },
+    data: { model3dUrl: null },
+    select: { id: true, model3dUrl: true },
+  });
+
+  const oldPath = this.storage.pathFromUrl(MODEL_BUCKET, court.model3dUrl);
+  if (oldPath) await this.storage.remove(MODEL_BUCKET, oldPath);
+
+  return updated;
+}
 }

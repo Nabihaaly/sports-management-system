@@ -15,10 +15,14 @@ export interface VenueDetailsInput {
   courtsPriceRange: string;
 }
 
-export type ApplicationStatus = "PENDING" | "APPROVED" | "REJECTED"
- 
+export type ApplicationStatus = "PENDING" | "APPROVED" | "REJECTED";
+// Purane imports (Navbar, applicationStatus page) ke liye alias
+export type OwnerStatus = ApplicationStatus;
+
+// Backend ka effective status:
+//   null → application nahi, APPROVED → owner verified (koi ek venue approved),
+//   PENDING / REJECTED → sabse naye venue ka status
 export async function getApplicationStatus(): Promise<{
-  isVerified: boolean;
   status: ApplicationStatus | null;
 }> {
   const response = await fetch("http://localhost:3001/venue-application/status", {
