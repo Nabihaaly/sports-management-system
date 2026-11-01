@@ -1,9 +1,24 @@
-import { Body, Controller, Get, Patch, UseGuards } from '@nestjs/common';
-import { AuthGuard, Session } from '@thallesp/nestjs-better-auth';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+
+import {
+  AuthGuard,
+  Session,
+} from '@thallesp/nestjs-better-auth';
+
 import type { UserSession } from '@thallesp/nestjs-better-auth';
+
 import { Role } from '@prisma/client';
 import { RolesGuard } from 'src/common/guards/role.guards';
 import { Roles } from 'src/common/decorators/role.decorators';
+
 import { PlayerProfileService } from './player-profile.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
@@ -11,16 +26,42 @@ import { UpdateProfileDto } from './dto/update-profile.dto';
 @UseGuards(AuthGuard, RolesGuard)
 @Roles(Role.PLAYER)
 export class PlayerProfileController {
-    constructor(private readonly playerProfile: PlayerProfileService) { }
+  constructor(
+    private readonly playerProfile: PlayerProfileService,
+  ) {}
 
-    
-    @Get('/')
-    getProfile(@Session() session: UserSession) {
-        return this.playerProfile.getProfile(session.user.id);
-    }
+  // Search other players by display name
+  @Get('search')
+  searchPlayers(
+    @Session() session: UserSession,
+    @Query('name') name: string,
+  ) {
+    return this.playerProfile.searchPlayers(
+      session.user.id,
+      name,
+    );
+  }
 
-    @Patch('/') //Existing profile ke kuch fields update karne ke liye
-    updateProfile(@Session() session: UserSession, @Body() dto: UpdateProfileDto) {
-        return this.playerProfile.updateProfile(session.user.id, dto);
-    }
+  // Get logged-in player's own profile
+  @Get('/')
+  getProfile(@Session() session: UserSession) {
+    return this.playerProfile.getProfile(session.user.id);
+  }
+
+  // Create or update logged-in player's profile
+  @Patch('/')
+  updateProfile(
+    @Session() session: UserSession,
+    @Body() dto: UpdateProfileDto,
+  ) {
+    return this.playerProfile.updateProfile(
+      session.user.id,
+      dto,
+    );
+  }
+
+  @Get(':id')
+getPublicProfile(@Param('id') id: string) {
+  return this.playerProfile.getPublicProfile(id);
+}
 }

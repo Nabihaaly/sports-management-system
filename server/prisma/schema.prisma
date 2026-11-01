@@ -25,6 +25,7 @@ model User {
   accounts      Account[]
   venueOwnerPersonal VenueOwnerPersonal?
   playerProfile      PlayerProfile?
+  bookings           Booking[]
 
 
   role          Role     @default(PLAYER)
@@ -137,13 +138,16 @@ enum SkillLevel {
 model PlayerProfile {
   id                String      @id @default(cuid())
   userId            String      @unique
-  displayName       String?
+
+  displayName       String
+  city              String
+
   bio               String?
   profilePicture    String?
-  city              String?
   skillLevel        SkillLevel?
-  availability      String?
-  preferredSports   String[]
+  availableForMatching Boolean @default(false)
+  preferredSports   String[]    @default([])
+
   isProfileComplete Boolean     @default(false)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -151,6 +155,7 @@ model PlayerProfile {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
 
 
 enum CourtType {
@@ -176,9 +181,11 @@ model Court {
   operatingDays           String[]
 
   isActive                Boolean   @default(true)
+  model3dUrl              String?   // .glb file ka public URL (Supabase Storage); null = sport ka default template use hoga
 
   venue VenueApplicationDetails @relation(fields: [venueId],references: [id], onDelete: Cascade)
   availabilities CourtAvailability[]
+  bookings       Booking[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -208,4 +215,32 @@ model CourtAvailability {
   court Court @relation(fields: [courtId],references: [id],onDelete: Cascade)
 
   @@index([courtId, dayOfWeek])
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+}
+
+model Booking {
+  id            String         @id @default(cuid())
+  userId        String
+  courtId       String
+
+  bookingDate   String         // "YYYY-MM-DD"
+  startTime     String         // "HH:mm"
+  endTime       String         // "HH:mm"
+  totalPricePKR Int
+
+  status        BookingStatus  @default(PENDING)
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  court Court @relation(fields: [courtId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([courtId, bookingDate])
+  @@index([userId])
 }
