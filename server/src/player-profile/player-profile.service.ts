@@ -6,16 +6,15 @@ import {
 } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+
 import { StorageService } from '../storage/storage.service';
 import { assertImage, imagePath, IMAGE_BUCKET } from '../storage/image.util';
-import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class PlayerProfileService {
-  constructor(
-    private prisma: PrismaService,
-    private storage: StorageService,
-  ) {}
+  constructor(private prisma: PrismaService,
+    private storage: StorageService) {}
 
   // Get logged-in player's profile
   async getProfile(userId: string) {
@@ -109,6 +108,62 @@ export class PlayerProfileService {
         isProfileComplete,
       },
     });
+
+    return { profile };
+  }
+    // Profile picture upload: validate → Supabase → URL save → purani file delete.
+  // Profile row honi chahiye (displayName/city required hain) → pehle Save, phir photo.
+  async uploadPicture(userId: string, file?: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded (field name: file)');
+    }
+    const { contentType, ext } = assertImage(file);
+
+    const existing = await this.prisma.playerProfile.findUnique({
+      where: { userId },
+      select: { profilePicture: true },
+    });
+    if (!existing) {
+      throw new BadRequestException(
+        'Save your display name and city first, then add a photo.',
+      );
+    }
+
+    const url = await this.storage.upload(
+      IMAGE_BUCKET,
+      imagePath(`profiles/${userId}`, ext),
+      file.buffer,
+      contentType,
+    );
+
+    const profile = await this.prisma.playerProfile.update({
+      where: { userId },
+      data: { profilePicture: url },
+    });
+
+    // Purani picture sirf tab delete jab wo humari bucket ki thi
+    const oldPath =
+      existing.profilePicture &&
+      this.storage.pathFromUrl(IMAGE_BUCKET, existing.profilePicture);
+    if (oldPath) await this.storage.remove(IMAGE_BUCKET, oldPath);
+
+    return { profile };
+  }
+
+  async removePicture(userId: string) {
+    const existing = await this.prisma.playerProfile.findUnique({
+      where: { userId },
+      select: { profilePicture: true },
+    });
+    if (!existing?.profilePicture) return this.getProfile(userId);
+
+    const profile = await this.prisma.playerProfile.update({
+      where: { userId },
+      data: { profilePicture: null },
+    });
+
+    const oldPath = this.storage.pathFromUrl(IMAGE_BUCKET, existing.profilePicture);
+    if (oldPath) await this.storage.remove(IMAGE_BUCKET, oldPath);
 
     return { profile };
   }

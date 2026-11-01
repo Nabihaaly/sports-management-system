@@ -1,17 +1,15 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
-import RequireRole from "@/Components/RequireRole";
 import {
   getProfile,
   updateProfile,
   uploadProfilePicture,
-  removeProfilePicture,
   SkillLevel,
 } from "../../services/playerProfile";
+import RequireRole from "@/Components/RequireRole";
 
 const SKILL_LEVELS: SkillLevel[] = [
   "BEGINNER",
@@ -29,6 +27,8 @@ const SPORTS = [
   "Pickleball",
 ];
 
+const MAX_IMAGE_MB = 5;
+
 const Page = () => {
   const router = useRouter();
 
@@ -41,9 +41,13 @@ const Page = () => {
     preferredSports: [] as string[],
   });
 
+  // Photo: Save se pehle sirf local preview, upload Save ke saath hota hai
+  // (profile row tab tak nahi hoti, backend upload reject karega)
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
   // Prefill existing profile
@@ -58,12 +62,11 @@ const Page = () => {
           displayName: profile.displayName ?? "",
           city: profile.city ?? "",
           skillLevel: profile.skillLevel ?? "",
-          availableForMatching:
-            profile.availableForMatching ?? false,
+          availableForMatching: profile.availableForMatching ?? false,
           bio: profile.bio ?? "",
           preferredSports: profile.preferredSports ?? [],
         });
-        setProfilePicture(profile.profilePicture);
+        setPhotoPreview(profile.profilePicture);
       })
       .catch(() => {})
       .finally(() => {
@@ -95,8 +98,7 @@ const Page = () => {
     }));
   };
 
-  // Picture upload turant hota hai — Save ka wait nahi
-  const handlePicture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (file.size > MAX_IMAGE_MB * 1024 * 1024) {
@@ -104,33 +106,17 @@ const Page = () => {
       e.target.value = "";
       return;
     }
-    setUploading(true);
-    try {
-      const { profile } = await uploadProfilePicture(file);
-      setProfilePicture(profile.profilePicture);
-      toast.success("Photo updated");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Upload failed");
-    } finally {
-      setUploading(false);
-      e.target.value = ""; // same file dobara choose ho sake
-    }
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
   };
 
-  const handleRemovePicture = async () => {
-    if (!window.confirm("Remove your profile photo?")) return;
-    try {
-      await removeProfilePicture();
-      setProfilePicture(null);
-      toast.success("Photo removed");
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Failed");
-    }
+  const handlePhotoClear = () => {
+    setPhotoFile(null);
+    setPhotoPreview(null);
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
     setError("");
 
     if (!form.displayName.trim() || !form.city.trim()) {
@@ -146,29 +132,28 @@ const Page = () => {
         city: form.city.trim(),
         availableForMatching: form.availableForMatching,
         preferredSports: form.preferredSports,
-
-        ...(form.skillLevel && {
-          skillLevel: form.skillLevel,
-        }),
-
-        ...(form.bio.trim() && {
-          bio: form.bio.trim(),
-        }),
-
-        ...(form.profilePicture.trim() && {
-          profilePicture: form.profilePicture.trim(),
-        }),
+        ...(form.skillLevel && { skillLevel: form.skillLevel }),
+        ...(form.bio.trim() && { bio: form.bio.trim() }),
       };
 
+      // 1. Profile save (create ya update)
       await updateProfile(payload);
 
-      toast.success("Profile saved");
+      // 2. Photo chuni thi to ab upload — profile row ab exist karti hai
+      if (photoFile) {
+        try {
+          await uploadProfilePicture(photoFile);
+        } catch {
+          toast.error(
+            "Profile saved, but the photo upload failed. You can add it from your profile.",
+          );
+        }
+      }
 
+      toast.success("Profile saved");
       router.push("/dashboard");
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Something went wrong",
-      );
+      setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setSaving(false);
     }
@@ -186,26 +171,59 @@ const Page = () => {
   return (
     <RequireRole role="PLAYER">
       <div>
-        <form
-          onSubmit={handleSubmit}
-          className="max-w-2xl mx-auto space-y-6"
-        >
+        <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-6">
           <div>
-            <h2 className="text-xl font-semibold mb-1">
-              Build your player card
-            </h2>
+            <h2 className="text-xl font-semibold mb-1">Build your player card</h2>
 
             <p className="text-sm text-gray-600 mb-4">
-              Level, sports and matching preferences — the better we know
-              you, the better we can match you.
+              Level, sports and matching preferences — the better we know you,
+              the better we can match you.
             </p>
 
             <div className="space-y-4">
+              {/* Profile photo (optional) */}
+              <div>
+                <label className="block mb-1">
+                  Profile photo <span className="text-gray-400">(optional)</span>
+                </label>
+                <div className="flex items-center gap-3">
+                  {photoPreview ? (
+                    <img
+                      src={photoPreview}
+                      alt="Profile preview"
+                      className="w-16 h-16 rounded-full object-cover border"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full bg-gray-200 border" />
+                  )}
+                  <label className="border rounded-md px-3 py-1.5 text-sm cursor-pointer">
+                    {photoFile ? "Change photo" : "Choose photo"}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      onChange={handlePhotoSelect}
+                      className="hidden"
+                    />
+                  </label>
+                  {photoFile && (
+                    <button
+                      type="button"
+                      onClick={handlePhotoClear}
+                      className="text-sm text-red-600 underline"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Uploaded when you save · JPG, PNG or WebP · max {MAX_IMAGE_MB} MB
+                </p>
+              </div>
+
               <div>
                 <label className="block mb-1">
                   Display name <span className="text-red-500">*</span>
                 </label>
-
                 <input
                   name="displayName"
                   value={form.displayName}
@@ -220,7 +238,6 @@ const Page = () => {
                 <label className="block mb-1">
                   Home city <span className="text-red-500">*</span>
                 </label>
-
                 <input
                   name="city"
                   value={form.city}
@@ -232,10 +249,7 @@ const Page = () => {
               </div>
 
               <div>
-                <label className="block mb-1">
-                  Skill level
-                </label>
-
+                <label className="block mb-1">Skill level</label>
                 <select
                   name="skillLevel"
                   value={form.skillLevel}
@@ -243,7 +257,6 @@ const Page = () => {
                   className="w-full border rounded-md p-2"
                 >
                   <option value="">Select</option>
-
                   {SKILL_LEVELS.map((s) => (
                     <option key={s} value={s}>
                       {s}
@@ -252,7 +265,7 @@ const Page = () => {
                 </select>
               </div>
 
-              {/* Available for matching checkbox */}
+              {/* Available for matching */}
               <div className="flex items-center gap-3 border rounded-md p-4">
                 <input
                   type="checkbox"
@@ -266,7 +279,6 @@ const Page = () => {
                   }
                   className="h-5 w-5 cursor-pointer accent-black"
                 />
-
                 <div>
                   <label
                     htmlFor="availableForMatching"
@@ -274,7 +286,6 @@ const Page = () => {
                   >
                     Available for matching
                   </label>
-
                   <p className="text-sm text-gray-500 mt-1">
                     Allow other players to find and match with you.
                   </p>
@@ -282,10 +293,7 @@ const Page = () => {
               </div>
 
               <div>
-                <label className="block mb-1">
-                  Preferred sports
-                </label>
-
+                <label className="block mb-1">Preferred sports</label>
                 <div className="flex flex-wrap gap-2">
                   {SPORTS.map((sport) => (
                     <button
@@ -302,27 +310,10 @@ const Page = () => {
                     </button>
                   ))}
                 </div>
-
-              <div>
-                <label className="block mb-1">
-                  Profile photo URL
-                </label>
-
-                <input
-                  name="profilePicture"
-                  value={form.profilePicture}
-                  onChange={handleChange}
-                  placeholder="https://..."
-                  className="w-full border rounded-md p-2"
-                />
               </div>
-            </div>
 
               <div>
-                <label className="block mb-1">
-                  Bio
-                </label>
-
+                <label className="block mb-1">Bio</label>
                 <textarea
                   name="bio"
                   value={form.bio}
@@ -335,9 +326,7 @@ const Page = () => {
             </div>
           </div>
 
-          {error && (
-            <p className="text-red-600">{error}</p>
-          )}
+          {error && <p className="text-red-600">{error}</p>}
 
           <div className="flex gap-3">
             <button

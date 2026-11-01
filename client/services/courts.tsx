@@ -64,6 +64,7 @@ export interface OwnerVenue {
   address: string;
   city: string;
   sizeOfVenue: string;
+  images: string[];
   courtsPriceRange: string;
   isActive: boolean;
   courts: Court[];

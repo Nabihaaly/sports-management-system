@@ -13,21 +13,25 @@ enum Role {
 }
 
 model User {
-  id            String    @id
-  name          String
-  email         String
-  emailVerified Boolean   @default(false)
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  sessions      Session[]
-  accounts      Account[]
-  venueOwnerPersonal VenueOwnerPersonal?
-  playerProfile      PlayerProfile?
-  bookings           Booking[]
+  id                  String    @id
+  name                String
+  email               String
+  emailVerified       Boolean   @default(false)
+  image               String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  sessions            Session[]
+  accounts            Account[]
+  venueOwnerPersonal  VenueOwnerPersonal?
+  playerProfile       PlayerProfile?
+  bookings            Booking[]
 
+  bookingParticipants BookingParticipant[]
 
-  role          Role     @default(PLAYER)
+  role Role @default(PLAYER)
+
+  sentFriendRequests     Friend[] @relation("FriendRequestSender")
+  receivedFriendRequests Friend[] @relation("FriendRequestReceiver")
 
   @@unique([email])
   @@map("user")
@@ -42,7 +46,7 @@ model Session {
   ipAddress String?
   userAgent String?
   userId    String
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([token])
   @@index([userId])
@@ -54,7 +58,7 @@ model Account {
   accountId             String
   providerId            String
   userId                String
-  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   accessToken           String?
   refreshToken          String?
   idToken               String?
@@ -75,7 +79,7 @@ model Verification {
   value      String
   expiresAt  DateTime
   createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  updatedAt DateTime @updatedAt
 
   @@index([identifier])
   @@map("verification")
@@ -105,23 +109,22 @@ model VenueApplicationDetails {
   id           String @id @default(cuid())
   venueOwnerId String
 
-  venueName             String
-  description           String?
-  address               String
-  city                  String
-  images                String[]
+  venueName            String
+  description          String?
+  address              String
+  city                 String
+  images               String[]
   businessRegistration String
-  sizeOfVenue           String
-  courtsPriceRange      String
+  sizeOfVenue          String
+  courtsPriceRange     String
 
-  isActive                Boolean   @default(true)
+  isActive Boolean @default(true)
 
   status ApplicationStatus @default(PENDING)
 
   venueOwner VenueOwnerPersonal @relation(fields: [venueOwnerId], references: [id])
 
   courts Court[]
-
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -135,19 +138,19 @@ enum SkillLevel {
 }
 
 model PlayerProfile {
-  id                String      @id @default(cuid())
-  userId            String      @unique
+  id                   String     @id @default(cuid())
+  userId               String     @unique
 
-  displayName       String
-  city              String
+  displayName          String
+  city                 String
 
-  bio               String?
-  profilePicture    String?
-  skillLevel        SkillLevel?
-  availableForMatching Boolean @default(false)
-  preferredSports   String[]    @default([])
+  bio                  String?
+  profilePicture       String?
+  skillLevel           SkillLevel?
+  availableForMatching Boolean    @default(false)
+  preferredSports      String[]   @default([])
 
-  isProfileComplete Boolean     @default(false)
+  isProfileComplete Boolean @default(false)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -155,34 +158,32 @@ model PlayerProfile {
   updatedAt DateTime @updatedAt
 }
 
-
-
 enum CourtType {
   INDOOR
   OUTDOOR
 }
 
 model Court {
-  id                      String    @id @default(cuid())
-  venueId                 String
+  id                     String    @id @default(cuid())
+  venueId                String
 
-  courtName               String
-  sport                   String
-  courtType               CourtType
-  maxPlayers              Int
-  bookingDurationMinutes  Int       @default(60)
-  description             String?
+  courtName              String
+  sport                  String
+  courtType              CourtType
+  maxPlayers             Int
+  bookingDurationMinutes Int       @default(60)
+  description            String?
 
-  pricePerSlotPKR         Int
+  pricePerSlotPKR Int
 
-  openingTime             String
-  closingTime             String
-  operatingDays           String[]
+  openingTime  String
+  closingTime  String
+  operatingDays String[]
 
-  isActive                Boolean   @default(true)
-  model3dUrl              String?   // .glb file ka public URL (Supabase Storage); null = sport ka default template use hoga
+  isActive  Boolean @default(true)
+  model3dUrl String?
 
-  venue VenueApplicationDetails @relation(fields: [venueId],references: [id], onDelete: Cascade)
+  venue          VenueApplicationDetails @relation(fields: [venueId], references: [id], onDelete: Cascade)
   availabilities CourtAvailability[]
   bookings       Booking[]
 
@@ -191,7 +192,6 @@ model Court {
 
   @@index([venueId])
 }
-
 
 enum WeekDay {
   MONDAY
@@ -211,7 +211,7 @@ model CourtAvailability {
   endTime   String
   isActive  Boolean  @default(true)
 
-  court Court @relation(fields: [courtId],references: [id],onDelete: Cascade)
+  court Court @relation(fields: [courtId], references: [id], onDelete: Cascade)
 
   @@index([courtId, dayOfWeek])
 }
@@ -222,24 +222,108 @@ enum BookingStatus {
   CANCELLED
 }
 
+enum BookingType {
+  SINGLE
+  SPLIT
+}
+
+enum SplitBookingStatus {
+  INVITING
+  READY_FOR_PAYMENT
+}
+
+enum BookingInvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+  EXPIRED
+}
+
+enum ParticipantPaymentStatus {
+  PENDING
+  PAID
+}
+
 model Booking {
-  id            String         @id @default(cuid())
+  id            String        @id @default(cuid())
   userId        String
   courtId       String
 
-  bookingDate   String         // "YYYY-MM-DD"
-  startTime     String         // "HH:mm"
-  endTime       String         // "HH:mm"
+  bookingDate   String
+  startTime     String
+  endTime       String
   totalPricePKR Int
 
-  status        BookingStatus  @default(PENDING)
+  status        BookingStatus @default(PENDING)
 
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  court Court @relation(fields: [courtId], references: [id], onDelete: Cascade)
+  bookingType         BookingType        @default(SINGLE)
+  splitStatus         SplitBookingStatus?
+  invitationExpiresAt DateTime?
+  paymentExpiresAt    DateTime?
+
+  user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  court        Court               @relation(fields: [courtId], references: [id], onDelete: Cascade)
+
+  participants BookingParticipant[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([courtId, bookingDate])
   @@index([userId])
+  @@index([bookingType, splitStatus])
+  @@index([invitationExpiresAt])
+}
+
+model BookingParticipant {
+  id        String @id @default(cuid())
+  bookingId String
+  userId    String
+
+  isCreator Boolean @default(false)
+
+  invitationStatus BookingInvitationStatus @default(PENDING)
+
+  amountPKR Int
+  
+  paymentStatus ParticipantPaymentStatus @default(PENDING)
+  paidAt        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // A user can only be added once to the same booking
+  @@unique([bookingId, userId])
+
+  @@index([userId, invitationStatus])
+  @@index([bookingId, invitationStatus])
+  @@index([bookingId, paymentStatus])
+}
+
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+}
+
+model Friend {
+  id String @id @default(cuid())
+
+  senderId   String
+  receiverId String
+
+  status FriendRequestStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sender   User @relation("FriendRequestSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("FriendRequestReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+  @@index([receiverId, status])
+  @@index([senderId, status])
 }

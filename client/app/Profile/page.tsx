@@ -7,6 +7,8 @@ import RequireRole from "@/Components/RequireRole";
 import {
   getProfile,
   updateProfile,
+  uploadProfilePicture,
+  removeProfilePicture,
   PlayerProfile,
   SkillLevel,
 } from "../../services/playerProfile";
@@ -33,7 +35,6 @@ type ProfileForm = {
   skillLevel: SkillLevel | "";
   availableForMatching: boolean;
   bio: string;
-  profilePicture: string;
   preferredSports: string[];
 };
 
@@ -43,7 +44,6 @@ const emptyForm: ProfileForm = {
   skillLevel: "",
   availableForMatching: false,
   bio: "",
-  profilePicture: "",
   preferredSports: [],
 };
 
@@ -55,6 +55,8 @@ const Page = () => {
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
   const [error, setError] = useState("");
+
+  const [uploading, setUploading] = useState(false);
 
   // Fetch logged-in player's profile
   useEffect(() => {
@@ -70,7 +72,6 @@ const Page = () => {
             availableForMatching:
               profile.availableForMatching ?? false,
             bio: profile.bio ?? "",
-            profilePicture: profile.profilePicture ?? "",
             preferredSports: profile.preferredSports ?? [],
           });
         } else {
@@ -106,7 +107,6 @@ const Page = () => {
         availableForMatching:
           profile.availableForMatching ?? false,
         bio: profile.bio ?? "",
-        profilePicture: profile.profilePicture ?? "",
         preferredSports: profile.preferredSports ?? [],
       });
     } else {
@@ -115,6 +115,40 @@ const Page = () => {
 
     setError("");
     setEditing(false);
+  };
+
+
+  // Photo turant upload — Save se alag
+  const handlePicture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be under 5 MB");
+      e.target.value = "";
+      return;
+    }
+    setUploading(true);
+    try {
+      const { profile: updated } = await uploadProfilePicture(file);
+      setProfile(updated);
+      toast.success("Photo updated");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleRemovePicture = async () => {
+    if (!window.confirm("Remove your profile photo?")) return;
+    try {
+      const { profile: updated } = await removeProfilePicture();
+      setProfile(updated);
+      toast.success("Photo removed");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
+    }
   };
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -143,9 +177,6 @@ const Page = () => {
           bio: form.bio.trim(),
         }),
 
-        ...(form.profilePicture.trim() && {
-          profilePicture: form.profilePicture.trim(),
-        }),
       };
 
       const response = await updateProfile(payload);
@@ -159,7 +190,6 @@ const Page = () => {
         availableForMatching:
           response.profile.availableForMatching ?? false,
         bio: response.profile.bio ?? "",
-        profilePicture: response.profile.profilePicture ?? "",
         preferredSports: response.profile.preferredSports ?? [],
       });
 
@@ -286,22 +316,47 @@ const Page = () => {
                   </select>
                 </div>
 
-                <div>
-                  <label className="mb-1 block font-medium">
-                    Profile picture URL
-                  </label>
-
-                  <input
-                    value={form.profilePicture}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        profilePicture: e.target.value,
-                      }))
-                    }
-                    placeholder="https://..."
-                    className="w-full rounded-md border p-3"
-                  />
+                                <div>
+                  <label className="mb-1 block font-medium">Profile photo</label>
+                  {profile ? (
+                    <div className="flex items-center gap-4">
+                      {profile.profilePicture ? (
+                        <img
+                          src={profile.profilePicture}
+                          alt="Profile"
+                          className="h-20 w-20 rounded-full border object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gray-200 text-2xl font-bold text-gray-600">
+                          {profile.displayName?.charAt(0).toUpperCase() || "?"}
+                        </div>
+                      )}
+                      <label className="cursor-pointer rounded-md border px-4 py-2 text-sm hover:bg-gray-100">
+                        {uploading ? "Uploading..." : profile.profilePicture ? "Change photo" : "Upload photo"}
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          onChange={handlePicture}
+                          disabled={uploading}
+                          className="hidden"
+                        />
+                      </label>
+                      {profile.profilePicture && (
+                        <button
+                          type="button"
+                          onClick={handleRemovePicture}
+                          className="text-sm text-red-600 underline"
+                        >
+                          Remove
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-gray-500">
+                      Save your profile first, then you can add a photo.
+                    </p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500">JPG, PNG or WebP · max 5 MB</p>
                 </div>
 
                 <div>

@@ -2,8 +2,10 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createApplication } from '../../services/venueApplication';
+import { createApplication,uploadVenueImages } from '../../services/venueApplication';
 import RequireRole from '@/Components/RequireRole';
+
+import ImagePicker from "@/Components/ImagePicker";
 
 const Page = () => {
   const router = useRouter();
@@ -155,6 +157,15 @@ const Page = () => {
                 onChange={handleVenueChange}
                 placeholder="Enter city"
                 className="w-full border rounded-md p-2"
+              />
+            </div>
+
+                        <div>
+              <label className="block mb-1">Venue photos</label>
+              <ImagePicker
+                images={venueDetails.images}
+                onChange={(images) => setVenueDetails({ ...venueDetails, images })}
+                upload={uploadVenueImages}
               />
             </div>
 

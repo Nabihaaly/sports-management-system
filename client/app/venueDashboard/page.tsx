@@ -6,6 +6,9 @@ import AddCourts from "@/Components/AddCourt";
 import { getMyVenues, OwnerVenue, setVenueActive } from "@/services/courts";
 import RequireRole from "@/Components/RequireRole";
 
+import ImagePicker from "@/Components/ImagePicker";
+import { setVenueImages, uploadVenueImages } from "@/services/venueApplication";
+
 const Page = () => {
 
   const [venues, setVenues] = useState<OwnerVenue[]>([]);
@@ -115,7 +118,10 @@ const Page = () => {
                 Size: {selectedVenue.sizeOfVenue} · Price range:{" "}
                 {selectedVenue.courtsPriceRange}
               </p>
+              
             </div>
+
+            
 
             <button
               onClick={toggleVenueActive}
@@ -132,6 +138,18 @@ const Page = () => {
                   ? "Deactivate venue"
                   : "Activate venue"}
             </button>
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="font-semibold">Photos</h3>
+            <ImagePicker
+              images={selectedVenue.images ?? []}
+              onChange={async (images) => {
+                await setVenueImages(selectedVenue.id, images);
+                await loadVenues();
+              }}
+              upload={uploadVenueImages}
+            />
           </div>
 
           <div className="space-y-2">
