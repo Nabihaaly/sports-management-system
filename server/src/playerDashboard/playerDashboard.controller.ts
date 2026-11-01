@@ -64,6 +64,14 @@ export class playerDashboardController {
     return this.playerservice.createBooking(session.user.id, body);
   }
 
+    // GET /player/bookings/held
+@Get('bookings/held')
+@UseGuards(AuthGuard, RolesGuard)
+@Roles(Role.PLAYER)
+getHeldBookings(@Session() session: UserSession) {
+  return this.playerservice.getHeldBookings(session.user.id);
+}
+
   // GET /player/bookings/:id
   @Get('bookings/:id')
   @UseGuards(AuthGuard, RolesGuard)
@@ -74,6 +82,8 @@ export class playerDashboardController {
   ) {
     return this.playerservice.getBooking(session.user.id, id);
   }
+
+
 
   // POST /player/bookings/:id/confirm
   @Post('bookings/:id/confirm')
@@ -88,6 +98,7 @@ export class playerDashboardController {
       id
     );
   }
+
 
   
 }

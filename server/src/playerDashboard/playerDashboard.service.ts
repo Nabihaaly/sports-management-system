@@ -512,4 +512,59 @@ export class playerDashboardService {
 
     return this.getBooking(userId, bookingId);
   }
+
+  // ---------- Get all active holds of the logged-in player ----------
+
+async getHeldBookings(userId: string) {
+  const holdCutoff = new Date(
+    Date.now() - HOLD_MINUTES * 60 * 1000,
+  );
+
+  const bookings = await this.prisma.booking.findMany({
+    where: {
+      userId,
+      status: 'PENDING',
+      createdAt: {
+        gt: holdCutoff,
+      },
+    },
+    include: {
+      court: {
+        include: {
+          venue: {
+            select: {
+              id: true,
+              venueName: true,
+              address: true,
+              city: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+  });
+
+  return {
+    bookings: bookings.map((booking) => ({
+      id: booking.id,
+      bookingDate: booking.bookingDate,
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+      totalPricePKR: booking.totalPricePKR,
+      createdAt: booking.createdAt,
+      holdExpiresAt: new Date(
+        booking.createdAt.getTime() +
+          HOLD_MINUTES * 60 * 1000,
+      ),
+      courtName: booking.court.courtName,
+      sport: booking.court.sport,
+      venueName: booking.court.venue.venueName,
+      venueId: booking.court.venue.id,
+      address: `${booking.court.venue.address}, ${booking.court.venue.city}`,
+    })),
+  };
+}
 }

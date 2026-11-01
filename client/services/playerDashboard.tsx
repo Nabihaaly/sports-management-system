@@ -57,4 +57,11 @@ export function confirmBooking(id: string) {
   return request(`/player/bookings/${id}/confirm`, {
     method: "POST",
   });
+
+  
+}
+
+// Get all active slots held by the logged-in player
+export function getHeldBookings() {
+  return request("/player/bookings/held");
 }
