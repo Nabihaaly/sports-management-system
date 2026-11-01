@@ -6,11 +6,16 @@ import {
 } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
+import { assertImage, imagePath, IMAGE_BUCKET } from '../storage/image.util';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class PlayerProfileService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private storage: StorageService,
+  ) {}
 
   // Get logged-in player's profile
   async getProfile(userId: string) {

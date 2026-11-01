@@ -21,6 +21,7 @@ import { Roles } from 'src/common/decorators/role.decorators';
 
 import { PlayerProfileService } from './player-profile.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { MAX_IMAGE_BYTES } from '../storage/image.util';
 
 @Controller('player-profile')
 @UseGuards(AuthGuard, RolesGuard)

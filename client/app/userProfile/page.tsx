@@ -4,12 +4,14 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import RequireRole from "@/Components/RequireRole";
 import {
   getProfile,
   updateProfile,
+  uploadProfilePicture,
+  removeProfilePicture,
   SkillLevel,
 } from "../../services/playerProfile";
-import RequireRole from "@/Components/RequireRole";
 
 const SKILL_LEVELS: SkillLevel[] = [
   "BEGINNER",
@@ -36,12 +38,12 @@ const Page = () => {
     skillLevel: "" as SkillLevel | "",
     availableForMatching: false,
     bio: "",
-    profilePicture: "",
     preferredSports: [] as string[],
   });
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
 
   // Prefill existing profile
@@ -59,9 +61,9 @@ const Page = () => {
           availableForMatching:
             profile.availableForMatching ?? false,
           bio: profile.bio ?? "",
-          profilePicture: profile.profilePicture ?? "",
           preferredSports: profile.preferredSports ?? [],
         });
+        setProfilePicture(profile.profilePicture);
       })
       .catch(() => {})
       .finally(() => {
@@ -91,6 +93,39 @@ const Page = () => {
         ? prev.preferredSports.filter((s) => s !== sport)
         : [...prev.preferredSports, sport],
     }));
+  };
+
+  // Picture upload turant hota hai — Save ka wait nahi
+  const handlePicture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > MAX_IMAGE_MB * 1024 * 1024) {
+      toast.error(`Image must be under ${MAX_IMAGE_MB} MB`);
+      e.target.value = "";
+      return;
+    }
+    setUploading(true);
+    try {
+      const { profile } = await uploadProfilePicture(file);
+      setProfilePicture(profile.profilePicture);
+      toast.success("Photo updated");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      e.target.value = ""; // same file dobara choose ho sake
+    }
+  };
+
+  const handleRemovePicture = async () => {
+    if (!window.confirm("Remove your profile photo?")) return;
+    try {
+      await removeProfilePicture();
+      setProfilePicture(null);
+      toast.success("Photo removed");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -267,7 +302,6 @@ const Page = () => {
                     </button>
                   ))}
                 </div>
-              </div>
 
               <div>
                 <label className="block mb-1">
@@ -282,6 +316,7 @@ const Page = () => {
                   className="w-full border rounded-md p-2"
                 />
               </div>
+            </div>
 
               <div>
                 <label className="block mb-1">

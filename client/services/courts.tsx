@@ -49,6 +49,7 @@ export interface Court {
   closingTime: string;
   operatingDays: WeekDay[];
   isActive: boolean;
+  model3dUrl: string | null;   // ← add
   availabilities: CourtAvailability[];
 }
 
@@ -127,4 +128,24 @@ export async function createCourt(court: CourtInput) {
     body: JSON.stringify(court),
   });
   return parse(response);
+}
+
+// .glb upload — multipart/form-data, field name "file" (backend FileInterceptor se match)
+export async function uploadCourtModel(courtId: string, file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  const response = await fetch(`${API_URL}/court/${courtId}/model`, {
+    method: "POST",
+    credentials: "include",
+    body: form, // Content-Type header MAT likho — browser boundary ke saath khud lagata hai
+  });
+  return parse(response) as Promise<{ id: string; model3dUrl: string }>;
+}
+
+export async function removeCourtModel(courtId: string) {
+  const response = await fetch(`${API_URL}/court/${courtId}/model`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  return parse(response) as Promise<{ id: string; model3dUrl: null }>;
 }

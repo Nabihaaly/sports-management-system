@@ -22,12 +22,10 @@ export async function getHomeRoute(
     }
 
     if (role === "OWNER") {
-      const { status, isVerified } = await getApplicationStatus();
-
-      if (isVerified) return "/venueDashboard";
-      if (status === null) return "/venueApplication";
-
-      return "/applicationStatus";
+      const { status } = await getApplicationStatus();
+      if (status === null) return "/venueApplication";   // abhi form nahi bhara
+      if (status === "APPROVED") return "/venueDashboard"; // verified owner
+      return "/applicationStatus";                         // PENDING ya REJECTED
     }
 
     if (role === "ADMIN") return "/admin";

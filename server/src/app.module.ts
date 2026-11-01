@@ -13,6 +13,8 @@ import { VenueApplicationModule } from './venue-application/venue-application.mo
 import { CourtModule } from './court/court.module';
 import { PlayerProfileModule } from './player-profile/player-profile.module';
 import { AdminModule } from './admin/admin.module';
+import { StorageService } from './storage/storage.service';
+import { StorageModule } from './storage/storage.module';
 
 @Module({
   imports: [
@@ -24,8 +26,9 @@ import { AdminModule } from './admin/admin.module';
     CourtModule,
     PlayerProfileModule,
     AdminModule,
+    StorageModule,
   ],
   controllers: [AppController, AuthController],
-  providers: [AppService, AuthapiService],
+  providers: [AppService, AuthapiService, StorageService],
 })
 export class AppModule {}

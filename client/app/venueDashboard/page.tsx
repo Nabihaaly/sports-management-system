@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import AddCourts from "@/Components/AddCourt";
 import { getMyVenues, OwnerVenue, setVenueActive } from "@/services/courts";
+import RequireRole from "@/Components/RequireRole";
 
 const Page = () => {
 
@@ -56,6 +57,8 @@ const Page = () => {
   };
 
   return (
+    <RequireRole role="OWNER">
+
     <div className="max-w-4xl mx-auto p-4 space-y-6">
       <div className="flex flex-wrap justify-between items-center gap-4">
         <h1 className="text-2xl font-semibold">Venue Dashboard</h1>
@@ -172,6 +175,8 @@ const Page = () => {
         />
       )}
     </div>
+
+  </RequireRole>  
   );
 };
 
