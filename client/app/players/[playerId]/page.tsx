@@ -5,10 +5,12 @@ import RequireRole from "@/Components/RequireRole";
 import {
   getPublicProfile,
   PublicPlayerProfile,
+  sendFriendRequest,
 } from "@/services/playerProfile";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+
 
 const Page = () => {
   const params = useParams();
@@ -19,6 +21,10 @@ const Page = () => {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [sendingRequest, setSendingRequest] = useState(false);
+const [requestSent, setRequestSent] = useState(false);
+const [friendError, setFriendError] = useState("");
+const [friendMessage, setFriendMessage] = useState("");
 
   useEffect(() => {
     if (!id) return;
@@ -34,6 +40,29 @@ const Page = () => {
       })
       .finally(() => setLoading(false));
   }, [id]);
+
+  const handleAddFriend = async () => {
+  if (!profile) return;
+
+  try {
+    setSendingRequest(true);
+    setFriendError("");
+    setFriendMessage("");
+
+    const result = await sendFriendRequest(profile.id);
+
+    setRequestSent(true);
+    setFriendMessage(result.message);
+  } catch (error) {
+    setFriendError(
+      error instanceof Error
+        ? error.message
+        : "Failed to send friend request"
+    );
+  } finally {
+    setSendingRequest(false);
+  }
+};
 
   return (
     <RequireRole role="PLAYER">
@@ -136,6 +165,32 @@ const Page = () => {
                 </p>
               )}
             </div>
+
+            <div className="mt-4">
+  <button
+    onClick={handleAddFriend}
+    disabled={sendingRequest || requestSent}
+    className="rounded-lg bg-blue-600 px-5 py-2 text-sm font-medium text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60"
+  >
+    {sendingRequest
+      ? "Sending..."
+      : requestSent
+      ? "Request Sent"
+      : "Add Friend"}
+  </button>
+
+  {friendMessage && (
+    <p className="mt-2 text-sm text-green-600">
+      {friendMessage}
+    </p>
+  )}
+
+  {friendError && (
+    <p className="mt-2 text-sm text-red-600">
+      {friendError}
+    </p>
+  )}
+</div>
 
           </div>
         )}

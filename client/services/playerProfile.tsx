@@ -131,4 +131,100 @@ export async function getPublicProfile(
   }
 
   return data;
+
+
 }
+
+  
+const FRIENDS_BASE = "http://localhost:3001/friends";
+
+export async function sendFriendRequest(profileId: string) {
+  const response = await fetch(
+    `${FRIENDS_BASE}/request/${encodeURIComponent(profileId)}`,
+    {
+      method: "POST",
+      credentials: "include",
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data?.message || "Failed to send friend request"
+    );
+  }
+
+  return data;
+}
+
+
+export interface ReceivedFriendRequest {
+  id: string;
+  senderId: string;
+  createdAt: string;
+  sender: {
+    name: string;
+    playerProfile: {
+      displayName: string;
+      profilePicture: string | null;
+      city: string;
+    } | null;
+  };
+}
+export async function getReceivedFriendRequests(): Promise<{
+  requests: ReceivedFriendRequest[];
+}> {
+  const response = await fetch(
+    `${FRIENDS_BASE}/requests/received`,
+    {
+      method: "GET",
+      credentials: "include",
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data?.message || "Failed to fetch friend requests");
+  }
+
+  return data;
+}
+
+export async function acceptFriendRequest(requestId: string) {
+  const response = await fetch(
+    `${FRIENDS_BASE}/${encodeURIComponent(requestId)}/accept`,
+    {
+      method: "PATCH",
+      credentials: "include",
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data?.message || "Failed to accept friend request");
+  }
+
+  return data;
+}
+
+export async function declineFriendRequest(requestId: string) {
+  const response = await fetch(
+    `${FRIENDS_BASE}/${encodeURIComponent(requestId)}/reject`,
+    {
+      method: "DELETE",
+      credentials: "include",
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data?.message || "Failed to decline friend request");
+  }
+
+  return data;
+}
+
