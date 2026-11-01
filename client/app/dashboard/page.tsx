@@ -3,6 +3,7 @@
 
 import RequireRole from "@/Components/RequireRole";
 import { getVenues } from "../../services/playerDashboard";
+import { searchPlayers, PlayerSearchResult } from "../../services/playerProfile";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
@@ -11,12 +12,45 @@ const Page = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [searchName, setSearchName] = useState("");
+  const [players, setPlayers] = useState<PlayerSearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
+  const [hasSearched, setHasSearched] = useState(false);
+
   useEffect(() => {
     getVenues()
       .then(setVenues)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
+
+  const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (!searchName.trim()) {
+      setPlayers([]);
+      setHasSearched(false);
+      setSearchError("");
+      return;
+    }
+
+    setSearching(true);
+    setSearchError("");
+    setHasSearched(true);
+
+    try {
+      const result = await searchPlayers(searchName);
+      setPlayers(result.players);
+    } catch (e) {
+      setSearchError(
+        e instanceof Error ? e.message : "Failed to search players"
+      );
+      setPlayers([]);
+    } finally {
+      setSearching(false);
+    }
+  };
 
   return (
     <RequireRole role="PLAYER">
@@ -27,7 +61,7 @@ const Page = () => {
           <h1 className="text-2xl font-bold">Venues</h1>
 
           <Link
-            href="/profile"
+            href="/Profile"
             title="My Profile"
             aria-label="Open my profile"
             className="flex h-11 w-11 items-center justify-center rounded-full border border-gray-300 hover:bg-gray-100 transition"
@@ -48,6 +82,68 @@ const Page = () => {
             </svg>
           </Link>
         </div>
+
+        {/* Search Players */}
+        <div className="mb-8">
+          <h2 className="mb-3 text-lg font-semibold">
+            Find Players
+          </h2>
+
+          <form onSubmit={handleSearch} className="flex gap-2">
+            <input
+              type="text"
+              value={searchName}
+              onChange={(e) => setSearchName(e.target.value)}
+              placeholder="Search players by name..."
+              className="w-full rounded-lg border p-3 outline-none focus:border-black"
+            />
+
+            <button
+              type="submit"
+              disabled={searching}
+              className="rounded-lg bg-black px-6 py-3 text-white disabled:opacity-50"
+            >
+              {searching ? "Searching..." : "Search"}
+            </button>
+          </form>
+
+          {searchError && (
+            <p className="mt-3 text-sm text-red-600">
+              {searchError}
+            </p>
+          )}
+
+   {hasSearched && !searching && !searchError && (
+  <div className="mt-5">
+    <h3 className="mb-3 font-semibold">
+      Search Results
+    </h3>
+
+    {players.length === 0 ? (
+      <p className="text-sm text-gray-500">
+        No players found with that name.
+      </p>
+    ) : (
+      <div className="space-y-2">
+        {players.map((player) => (
+          <Link
+            key={player.id}
+            href={`/players/${player.id}`}
+            className="block rounded-lg border bg-white p-3 font-medium transition hover:bg-gray-50 hover:text-blue-600"
+          >
+            {player.displayName}
+          </Link>
+        ))}
+      </div>
+    )}
+  </div>
+)}
+        </div>
+
+        {/* Venues */}
+        <h2 className="mb-4 text-xl font-bold">
+          Available Venues
+        </h2>
 
         {loading && <p>Loading...</p>}
 
@@ -89,6 +185,7 @@ const Page = () => {
             </div>
           ))}
         </div>
+
       </div>
     </RequireRole>
   );

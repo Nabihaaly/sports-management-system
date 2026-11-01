@@ -18,12 +18,23 @@ export interface PlayerProfile {
   isProfileComplete: boolean;
 }
 
+export interface PlayerSearchResult {
+  id: string;
+  displayName: string;
+  city: string;
+  profilePicture: string | null;
+  skillLevel: SkillLevel | null;
+  preferredSports: string[];
+  availableForMatching: boolean;
+}
+
 export type UpdateProfileInput = Partial<
   Omit<PlayerProfile, "id" | "userId" | "isProfileComplete">
 >;
 
 const BASE = "http://localhost:3001/player-profile";
 
+// Get logged-in player's own profile
 export async function getProfile(): Promise<{
   profile: PlayerProfile | null;
 }> {
@@ -41,6 +52,7 @@ export async function getProfile(): Promise<{
   return data;
 }
 
+// Create or update logged-in player's profile
 export async function updateProfile(
   input: UpdateProfileInput,
 ): Promise<{ profile: PlayerProfile }> {
@@ -61,6 +73,61 @@ export async function updateProfile(
       : data?.message || "Failed to update profile";
 
     throw new Error(message);
+  }
+
+  return data;
+}
+
+// Search other players by their display name
+export async function searchPlayers(
+  name: string,
+): Promise<{ players: PlayerSearchResult[] }> {
+  const response = await fetch(
+    `${BASE}/search?name=${encodeURIComponent(name)}`,
+    {
+      method: "GET",
+      credentials: "include",
+    },
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data?.message || "Failed to search players");
+  }
+
+  return data;
+}
+
+export interface PublicPlayerProfile {
+  id: string;
+  displayName: string;
+  city: string;
+  bio: string | null;
+  profilePicture: string | null;
+  skillLevel: SkillLevel | null;
+  preferredSports: string[];
+  availableForMatching: boolean;
+}
+
+// Get another player's public profile
+export async function getPublicProfile(
+  profileId: string,
+): Promise<{ profile: PublicPlayerProfile }> {
+  const response = await fetch(
+    `${BASE}/${encodeURIComponent(profileId)}`,
+    {
+      method: "GET",
+      credentials: "include",
+    },
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data?.message || "Failed to fetch player profile",
+    );
   }
 
   return data;
