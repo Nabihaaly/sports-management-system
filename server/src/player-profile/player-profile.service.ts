@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
@@ -15,22 +15,50 @@ export class PlayerProfileService {
     return { profile };
   }
 
-  async updateProfile(userId: string, dto: UpdateProfileDto) {
-    const existing = await this.prisma.playerProfile.findUnique({
-      where: { userId },
-    });
 
-    const merged = { ...existing, ...dto };
-    const isProfileComplete = Boolean(
-      merged.displayName && merged.city && merged.skillLevel,
+async updateProfile(userId: string, dto: UpdateProfileDto) {
+  const existing = await this.prisma.playerProfile.findUnique({
+    where: { userId },
+  });
+
+  // Get required fields from new data or existing profile
+  const displayName = dto.displayName ?? existing?.displayName;
+  const city = dto.city ?? existing?.city;
+
+  // Require display name and city
+  if (!displayName?.trim() || !city?.trim()) {
+    throw new BadRequestException(
+      'Display name and home city are required.',
     );
-
-    const profile = await this.prisma.playerProfile.upsert({
-      where: { userId },
-      create: { userId, ...dto, isProfileComplete },
-      update: { ...dto, isProfileComplete },
-    });
-
-    return { profile };
   }
+
+  const isProfileComplete = Boolean(
+    displayName.trim() && city.trim(),
+  );
+
+  const profile = await this.prisma.playerProfile.upsert({
+    where: { userId },
+
+    create: {
+      userId,
+      displayName: displayName.trim(),
+      city: city.trim(),
+      bio: dto.bio,
+      profilePicture: dto.profilePicture,
+      skillLevel: dto.skillLevel,
+      availableForMatching: dto.availableForMatching ?? false,
+      preferredSports: dto.preferredSports ?? [],
+      isProfileComplete,
+    },
+
+    update: {
+      ...dto,
+      displayName: displayName.trim(),
+      city: city.trim(),
+      isProfileComplete,
+    },
+  });
+
+  return { profile };
+}
 }

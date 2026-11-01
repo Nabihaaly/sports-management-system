@@ -19,7 +19,7 @@ export class PlayerProfileController {
         return this.playerProfile.getProfile(session.user.id);
     }
 
-    @Patch('/') //Existing profile ke kuch fields update karne ke liye
+    @Patch('/') 
     updateProfile(@Session() session: UserSession, @Body() dto: UpdateProfileDto) {
         return this.playerProfile.updateProfile(session.user.id, dto);
     }
