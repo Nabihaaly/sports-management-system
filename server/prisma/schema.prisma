@@ -26,7 +26,6 @@ model User {
   venueOwnerPersonal  VenueOwnerPersonal?
   playerProfile       PlayerProfile?
   bookings            Booking[]
-
   bookingParticipants BookingParticipant[]
 
   role Role @default(PLAYER)
@@ -80,7 +79,7 @@ model Verification {
   value      String
   expiresAt  DateTime
   createdAt  DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  updatedAt  DateTime @updatedAt
 
   @@index([identifier])
   @@map("verification")
@@ -107,9 +106,8 @@ model VenueOwnerPersonal {
 }
 
 model VenueApplicationDetails {
-  id           String @id @default(cuid())
-  venueOwnerId String
-
+  id                   String @id @default(cuid())
+  venueOwnerId         String
   venueName            String
   description          String?
   address              String
@@ -141,17 +139,14 @@ enum SkillLevel {
 model PlayerProfile {
   id                   String     @id @default(cuid())
   userId               String     @unique
-
   displayName          String
   city                 String
-
   bio                  String?
   profilePicture       String?
   skillLevel           SkillLevel?
   availableForMatching Boolean    @default(false)
   preferredSports      String[]   @default([])
-
-  isProfileComplete Boolean @default(false)
+  isProfileComplete    Boolean    @default(false)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -167,22 +162,18 @@ enum CourtType {
 model Court {
   id                     String    @id @default(cuid())
   venueId                String
-
   courtName              String
   sport                  String
   courtType              CourtType
   maxPlayers             Int
   bookingDurationMinutes Int       @default(60)
   description            String?
-
-  pricePerSlotPKR Int
-
-  openingTime  String
-  closingTime  String
-  operatingDays String[]
-
-  isActive  Boolean @default(true)
-  model3dUrl String?
+  pricePerSlotPKR        Int
+  openingTime            String
+  closingTime            String
+  operatingDays          String[]
+  isActive               Boolean   @default(true)
+  model3dUrl             String?
 
   venue          VenueApplicationDetails @relation(fields: [venueId], references: [id], onDelete: Cascade)
   availabilities CourtAvailability[]
@@ -250,7 +241,6 @@ model Booking {
   id            String        @id @default(cuid())
   userId        String
   courtId       String
-
   bookingDate   String
   startTime     String
   endTime       String
@@ -265,7 +255,6 @@ model Booking {
 
   user         User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   court        Court               @relation(fields: [courtId], references: [id], onDelete: Cascade)
-
   participants BookingParticipant[]
 
   createdAt DateTime @default(now())
@@ -287,7 +276,7 @@ model BookingParticipant {
   invitationStatus BookingInvitationStatus @default(PENDING)
 
   amountPKR Int
-  
+
   paymentStatus ParticipantPaymentStatus @default(PENDING)
   paidAt        DateTime?
 
@@ -297,9 +286,7 @@ model BookingParticipant {
   booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // A user can only be added once to the same booking
   @@unique([bookingId, userId])
-
   @@index([userId, invitationStatus])
   @@index([bookingId, invitationStatus])
   @@index([bookingId, paymentStatus])
@@ -327,4 +314,20 @@ model Friend {
   @@unique([senderId, receiverId])
   @@index([receiverId, status])
   @@index([senderId, status])
+}
+
+model MatchWithPlayers {
+  id             String   @id @default(cuid())
+  userId         String
+  preferredSport String
+  availableFrom  DateTime
+  availableUntil DateTime
+  budget       Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([availableFrom, availableUntil])
+  @@map("matchwithplayers")
 }

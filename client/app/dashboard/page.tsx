@@ -3,6 +3,7 @@
 
 import RequireRole from "@/Components/RequireRole";
 import PlayersNotifications from "@/Components/PlayersNotifications";
+import RequestToPlay from "@/Components/RequestToPlay";
 
 import {
   getVenues,
@@ -109,6 +110,8 @@ const Page = () => {
           <h1 className="text-2xl font-bold">Venues</h1>
 
           <div className="flex items-center gap-3">
+
+            <RequestToPlay />
 
             {/* Slots Held */}
             <div className="relative">

@@ -120,3 +120,15 @@ export function confirmSplitPayment(bookingId: string) {
     method: "POST",
   });
 }
+
+export function createMatchRequest(body: {
+  preferredSport: string;
+  availableFrom: string;
+  availableUntil: string;
+  budget: number;
+}) {
+  return request("/matchwith-players", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}

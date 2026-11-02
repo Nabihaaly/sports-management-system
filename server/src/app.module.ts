@@ -16,6 +16,8 @@ import { AdminModule } from './admin/admin.module';
 import { FriendService } from './friend/friend.service';
 import { FriendController } from './friend/friend.controller';
 import { FriendModule } from './friend/friend.module';
+import { MatchwithPlayersController } from './matchwith-players/matchwith-players.controller';
+import { MatchwithPlayersModule } from './matchwith-players/matchwith-players.module';
 
 @Module({
   imports: [
@@ -28,8 +30,9 @@ import { FriendModule } from './friend/friend.module';
     PlayerProfileModule,
     AdminModule,
     FriendModule,
+    MatchwithPlayersModule,
   ],
-  controllers: [AppController, AuthController, FriendController],
+  controllers: [AppController, AuthController, FriendController, MatchwithPlayersController],
   providers: [AppService, AuthapiService, FriendService],
 })
 export class AppModule {}
