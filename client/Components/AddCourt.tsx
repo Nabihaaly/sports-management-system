@@ -264,34 +264,53 @@ const AddCourts = ({ venueId, venueName, court, onClose, onCreated }: Props) => 
     }
   };
 
-  const input = "w-full border rounded-md p-2";
+
+  const input = "input";
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/50 overflow-y-auto p-4">
-      <div className="bg-white rounded-lg w-full max-w-3xl mx-auto my-8 p-6">
-        <div className="flex justify-between items-start mb-4">
-          <div>
-            <h2 className="text-xl font-semibold">
-              {isEditing ? "Edit Court" : "Add Court"}
-            </h2>
-            <p className="text-sm">
-              {isEditing ? "Editing court at" : "Adding to"}: {venueName}
+    <div className="modal-backdrop overflow-y-auto">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="add-court-title"
+        className="modal my-8 max-h-[90vh] max-w-3xl overflow-y-auto p-0"
+      >
+        {/* Sticky header */}
+        <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-line bg-sand px-6 py-5 sm:px-8">
+          <div className="space-y-1">
+            <p className="eyebrow">
+              {isEditing ? "Editing court at" : "Adding to"} {venueName}
             </p>
+            <h2
+              id="add-court-title"
+              className="font-heading text-3xl font-black uppercase leading-[0.95] tracking-tight text-ink"
+            >
+              {isEditing ? "Edit court" : "Add court"}
+            </h2>
           </div>
-          <button type="button" onClick={onClose} className="text-2xl leading-none">
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="btn-ghost -mr-2 -mt-1 h-10 w-10 px-0 text-xl leading-none"
+          >
             &times;
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-10 px-6 py-6 sm:px-8">
           {/* Court details */}
-          <div className="space-y-4">
-            <h3 className="font-semibold">Court details</h3>
+          <section className="space-y-4">
+            <div>
+              <p className="eyebrow">01 — Court details</p>
+              <h3 className="section-title text-xl">The basics</h3>
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <label className="block mb-1">Court name</label>
+                <label htmlFor="court-name" className="label">Court name</label>
                 <input
+                  id="court-name"
                   required
                   value={courtName}
                   onChange={(e) => setCourtName(e.target.value)}
@@ -301,8 +320,13 @@ const AddCourts = ({ venueId, venueName, court, onClose, onCreated }: Props) => 
               </div>
 
               <div>
-                <label className="block mb-1">Sport</label>
-                <select value={sport} onChange={(e) => setSport(e.target.value)} className={input}>
+                <label htmlFor="court-sport" className="label">Sport</label>
+                <select
+                  id="court-sport"
+                  value={sport}
+                  onChange={(e) => setSport(e.target.value)}
+                  className={input}
+                >
                   {SPORTS.map((s) => (
                     <option key={s} value={s}>
                       {s}
@@ -312,8 +336,9 @@ const AddCourts = ({ venueId, venueName, court, onClose, onCreated }: Props) => 
               </div>
 
               <div>
-                <label className="block mb-1">Court type</label>
+                <label htmlFor="court-type" className="label">Court type</label>
                 <select
+                  id="court-type"
                   value={courtType}
                   onChange={(e) => setCourtType(e.target.value as CourtType)}
                   className={input}
@@ -324,8 +349,11 @@ const AddCourts = ({ venueId, venueName, court, onClose, onCreated }: Props) => 
               </div>
 
               <div>
-                <label className="block mb-1">Players allowed at a time</label>
+                <label htmlFor="court-max-players" className="label">
+                  Players allowed at a time
+                </label>
                 <input
+                  id="court-max-players"
                   required
                   type="number"
                   min={1}
@@ -336,8 +364,11 @@ const AddCourts = ({ venueId, venueName, court, onClose, onCreated }: Props) => 
               </div>
 
               <div>
-                <label className="block mb-1">Default slot length (minutes)</label>
+                <label htmlFor="court-slot-length" className="label">
+                  Default slot length (minutes)
+                </label>
                 <input
+                  id="court-slot-length"
                   required
                   type="number"
                   min={15}
@@ -350,8 +381,9 @@ const AddCourts = ({ venueId, venueName, court, onClose, onCreated }: Props) => 
               </div>
 
               <div>
-                <label className="block mb-1">Price per slot (Rs.)</label>
+                <label htmlFor="court-price" className="label">Price per slot (Rs.)</label>
                 <input
+                  id="court-price"
                   required
                   type="number"
                   min={0}
@@ -363,24 +395,31 @@ const AddCourts = ({ venueId, venueName, court, onClose, onCreated }: Props) => 
             </div>
 
             <div>
-              <label className="block mb-1">Description (optional)</label>
+              <label htmlFor="court-description" className="label">
+                Description (optional)
+              </label>
               <textarea
+                id="court-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
                 className={input}
               />
             </div>
-          </div>
+          </section>
 
           {/* Timings */}
-          <div className="space-y-4">
-            <h3 className="font-semibold">Timings</h3>
+          <section className="space-y-4 border-t border-line pt-8">
+            <div>
+              <p className="eyebrow">02 — Timings</p>
+              <h3 className="section-title text-xl">When you&apos;re open</h3>
+            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
-                <label className="block mb-1">Opening time</label>
+                <label htmlFor="court-opening" className="label">Opening time</label>
                 <input
+                  id="court-opening"
                   required
                   type="time"
                   value={openingTime}
@@ -389,8 +428,9 @@ const AddCourts = ({ venueId, venueName, court, onClose, onCreated }: Props) => 
                 />
               </div>
               <div>
-                <label className="block mb-1">Closing time</label>
+                <label htmlFor="court-closing" className="label">Closing time</label>
                 <input
+                  id="court-closing"
                   required
                   type="time"
                   value={closingTime}
@@ -401,38 +441,41 @@ const AddCourts = ({ venueId, venueName, court, onClose, onCreated }: Props) => 
             </div>
 
             <div>
-              <p className="mb-1">Operating days</p>
+              <p className="label">Operating days</p>
               <div className="flex flex-wrap gap-2">
                 {WEEKDAYS.map((d) => (
-                  <label
+                  <button
                     key={d.value}
-                    className={`border rounded-md px-3 py-1 cursor-pointer ${
-                      operatingDays.includes(d.value) ? "bg-black text-white" : ""
-                    }`}
+                    type="button"
+                    onClick={() => toggleDay(d.value)}
+                    aria-pressed={operatingDays.includes(d.value)}
+                    className={operatingDays.includes(d.value) ? "chip-active" : "chip"}
                   >
-                    <input
-                      type="checkbox"
-                      className="sr-only"
-                      checked={operatingDays.includes(d.value)}
-                      onChange={() => toggleDay(d.value)}
-                    />
                     {d.label}
-                  </label>
+                  </button>
                 ))}
               </div>
             </div>
-          </div>
+          </section>
 
           {/* Weekly schedule */}
-          <div className="space-y-3">
-            <h3 className="font-semibold">Weekly schedule</h3>
-            <p className="text-sm">
-              Create the bookable slots for each operating day (for example 9:00–10:00,
-              then 11:00–12:00). Build one day, then copy it to the other days.
-            </p>
+          <section className="space-y-4 border-t border-line pt-8">
+            <div className="space-y-1">
+              <p className="eyebrow">03 — Weekly schedule</p>
+              <h3 className="section-title text-xl">Bookable slots</h3>
+              <p className="text-sm text-muted">
+                Create the bookable slots for each operating day (for example 9:00–10:00,
+                then 11:00–12:00). Build one day, then copy it to the other days.
+              </p>
+            </div>
 
             {orderedOperatingDays.length === 0 ? (
-              <p className="text-sm">Select an operating day first.</p>
+              <div className="rounded-3xl border border-dashed border-line p-8 text-center">
+                <p className="font-heading text-lg font-black uppercase tracking-tight text-ink">
+                  No operating days
+                </p>
+                <p className="mt-1 text-sm text-muted">Select an operating day first.</p>
+              </div>
             ) : (
               <>
                 {/* Day tabs */}
@@ -444,11 +487,11 @@ const AddCourts = ({ venueId, venueName, court, onClose, onCreated }: Props) => 
                         key={d.value}
                         type="button"
                         onClick={() => setActiveDay(d.value)}
-                        className={`border rounded-md px-3 py-1 ${
-                          currentDay === d.value ? "bg-black text-white" : ""
-                        }`}
+                        aria-pressed={currentDay === d.value}
+                        className={currentDay === d.value ? "chip-active" : "chip"}
                       >
-                        {d.label} ({count})
+                        {d.label}
+                        <span className="ml-1.5 opacity-60">({count})</span>
                       </button>
                     );
                   })}
@@ -457,40 +500,57 @@ const AddCourts = ({ venueId, venueName, court, onClose, onCreated }: Props) => 
                 {/* Slots for the active day */}
                 <div className="space-y-2">
                   {currentSlots.length === 0 && (
-                    <p className="text-sm">No slots yet for this day.</p>
+                    <div className="rounded-2xl border border-dashed border-line p-6 text-center">
+                      <p className="text-sm text-muted">No slots yet for this day.</p>
+                    </div>
                   )}
 
                   {currentSlots.map((s, i) => (
-                    <div key={i} className="grid grid-cols-3 gap-2 items-center">
-                      <input
-                        type="time"
-                        required
-                        value={s.startTime}
-                        onChange={(e) => updateSlot(i, { startTime: e.target.value })}
-                        className={input}
-                      />
-                      <input
-                        type="time"
-                        required
-                        value={s.endTime}
-                        onChange={(e) => updateSlot(i, { endTime: e.target.value })}
-                        className={input}
-                      />
+                    <div
+                      key={i}
+                      className="grid grid-cols-[1fr_1fr_auto] items-center gap-2 rounded-2xl bg-mist/60 p-3"
+                    >
+                      <div>
+                        <label htmlFor={`slot-${i}-start`} className="sr-only">
+                          Slot {i + 1} start time
+                        </label>
+                        <input
+                          id={`slot-${i}-start`}
+                          type="time"
+                          required
+                          value={s.startTime}
+                          onChange={(e) => updateSlot(i, { startTime: e.target.value })}
+                          className="input bg-white"
+                        />
+                      </div>
+                      <div>
+                        <label htmlFor={`slot-${i}-end`} className="sr-only">
+                          Slot {i + 1} end time
+                        </label>
+                        <input
+                          id={`slot-${i}-end`}
+                          type="time"
+                          required
+                          value={s.endTime}
+                          onChange={(e) => updateSlot(i, { endTime: e.target.value })}
+                          className="input bg-white"
+                        />
+                      </div>
                       <button
                         type="button"
                         onClick={() => removeSlot(i)}
-                        className="text-red-600"
+                        className="btn-ghost px-3 text-danger hover:text-danger"
                       >
                         Remove
                       </button>
                     </div>
                   ))}
 
-                  <div className="flex flex-wrap gap-4">
-                    <button type="button" onClick={addSlot} className="underline">
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <button type="button" onClick={addSlot} className="btn-outline px-4 py-1.5 text-xs">
                       + Add slot
                     </button>
-                    <button type="button" onClick={generateSlots} className="underline">
+                    <button type="button" onClick={generateSlots} className="btn-ghost px-4 py-1.5 text-xs">
                       Auto-fill with {bookingDurationMinutes || "60"}-min slots
                     </button>
                   </div>
@@ -498,29 +558,24 @@ const AddCourts = ({ venueId, venueName, court, onClose, onCreated }: Props) => 
 
                 {/* Copy to other days */}
                 {orderedOperatingDays.length > 1 && (
-                  <div className="border rounded-md p-3 space-y-2">
-                    <p className="text-sm">
+                  <div className="space-y-3 rounded-2xl border border-dashed border-line p-4">
+                    <p className="text-sm text-muted">
                       Copy {WEEKDAYS.find((d) => d.value === currentDay)?.label}&apos;s
                       schedule to (replaces their existing slots):
                     </p>
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       {orderedOperatingDays
                         .filter((d) => d.value !== currentDay)
                         .map((d) => (
-                          <label
+                          <button
                             key={d.value}
-                            className={`border rounded-md px-3 py-1 cursor-pointer ${
-                              copyTargets.includes(d.value) ? "bg-black text-white" : ""
-                            }`}
+                            type="button"
+                            onClick={() => toggleCopyTarget(d.value)}
+                            aria-pressed={copyTargets.includes(d.value)}
+                            className={copyTargets.includes(d.value) ? "chip-active" : "chip"}
                           >
-                            <input
-                              type="checkbox"
-                              className="sr-only"
-                              checked={copyTargets.includes(d.value)}
-                              onChange={() => toggleCopyTarget(d.value)}
-                            />
                             {d.label}
-                          </label>
+                          </button>
                         ))}
                       <button
                         type="button"
@@ -531,7 +586,7 @@ const AddCourts = ({ venueId, venueName, court, onClose, onCreated }: Props) => 
                               .map((d) => d.value),
                           )
                         }
-                        className="underline text-sm"
+                        className="btn-ghost px-3 py-1 text-xs"
                       >
                         Select all
                       </button>
@@ -540,7 +595,7 @@ const AddCourts = ({ venueId, venueName, court, onClose, onCreated }: Props) => 
                       type="button"
                       onClick={copySchedule}
                       disabled={copyTargets.length === 0 || currentSlots.length === 0}
-                      className="border rounded-md px-3 py-1 disabled:opacity-40"
+                      className="btn-outline px-4 py-1.5 text-xs disabled:opacity-40"
                     >
                       Copy schedule
                     </button>
@@ -548,27 +603,32 @@ const AddCourts = ({ venueId, venueName, court, onClose, onCreated }: Props) => 
                 )}
               </>
             )}
-          </div>
+          </section>
 
-          <label className="flex items-center gap-2">
+          <label className="flex items-center gap-3 rounded-2xl bg-mist/60 px-4 py-3 text-sm text-ink">
             <input
               type="checkbox"
               checked={isActive}
               onChange={(e) => setIsActive(e.target.checked)}
+              className="h-4 w-4 accent-ink"
             />
             Court is active and can be booked
           </label>
 
-          {error && <p className="text-red-600">{error}</p>}
+          {error && (
+            <p className="rounded-2xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">
+              {error}
+            </p>
+          )}
 
-          <div className="flex gap-3 justify-end">
-            <button type="button" onClick={onClose} className="border rounded-md px-4 py-2">
+          <div className="flex flex-col-reverse gap-3 border-t border-line pt-6 sm:flex-row sm:justify-end">
+            <button type="button" onClick={onClose} className="btn-ghost">
               Cancel
             </button>
             <button
               type="submit"
               disabled={loading}
-              className="bg-black text-white rounded-md px-4 py-2 disabled:opacity-50"
+              className="btn-primary w-full sm:w-auto"
             >
               {loading ? "Saving..." : isEditing ? "Save changes" : "Save court"}
             </button>

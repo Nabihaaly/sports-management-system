@@ -57,72 +57,154 @@ const Page = () => {
 
   return (
     <RequireRole role="ADMIN">
-      <div className="max-w-5xl mx-auto p-6 space-y-6">
-        <h1 className="text-2xl font-semibold">Venue Applications</h1>
+      <div className="page space-y-10">
+        {/* Header */}
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-2">
+            <p className="eyebrow">Admin</p>
+            <h1 className="page-title">Applications</h1>
+            <p className="text-sm text-muted">
+              Review new venues, approve the ones that are ready, and manage existing owners.
+            </p>
+          </div>
 
-        <div className="flex gap-2">
-          {TABS.map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`border rounded-md px-3 py-1 ${tab === t ? "bg-black text-white" : ""}`}
-            >
-              {t}
-            </button>
-          ))}
+          {/* Status filter */}
+          <div className="flex flex-wrap gap-2" role="tablist" aria-label="Application status">
+            {TABS.map((t) => (
+              <button
+                key={t}
+                type="button"
+                role="tab"
+                aria-selected={tab === t}
+                onClick={() => setTab(t)}
+                className={`${tab === t ? "chip-active" : "chip"} px-4 py-1.5 capitalize`}
+              >
+                {t.toLowerCase()}
+              </button>
+            ))}
+          </div>
         </div>
 
+        {/* List */}
         {loading ? (
-          <p>Loading...</p>
+          <div className="space-y-4" aria-busy="true" aria-live="polite">
+            <div className="h-48 animate-pulse rounded-3xl bg-mist" />
+            <div className="h-48 animate-pulse rounded-3xl bg-mist" />
+            <div className="h-48 animate-pulse rounded-3xl bg-mist" />
+          </div>
         ) : apps.length === 0 ? (
-          <p className="text-gray-600">No {tab.toLowerCase()} applications.</p>
+          <div className="rounded-3xl border border-dashed border-line p-10 text-center">
+            <p className="font-heading text-2xl font-black uppercase tracking-tight leading-[0.95] text-ink">
+              No {tab.toLowerCase()} applications
+            </p>
+            <p className="mt-2 text-sm text-muted">
+              New venue applications will show up here as they come in.
+            </p>
+          </div>
         ) : (
           <div className="space-y-4">
             {apps.map((a) => (
-              <div key={a.id} className="border rounded-md p-4 space-y-2">
-                <div className="flex justify-between">
-                  <div>
-                    <p className="font-semibold">{a.venueName} — {a.city}</p>
-                    <p className="text-sm text-gray-600">{a.address}</p>
-                    <p className="text-sm text-gray-600">
-                      {a.sizeOfVenue} · {a.courtsPriceRange}
+              <article key={a.id} className="card space-y-6 sm:p-6">
+                {/* Top row: venue + status + date */}
+                <div className="flex flex-wrap items-start justify-between gap-4">
+                  <div className="min-w-0 space-y-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h2 className="font-heading text-2xl font-black uppercase tracking-tight leading-[0.95] text-ink sm:text-3xl">
+                        {a.venueName}
+                      </h2>
+                      <span
+                        className={
+                          a.status === "APPROVED"
+                            ? "badge-success"
+                            : a.status === "REJECTED"
+                              ? "badge-danger"
+                              : "badge-warning"
+                        }
+                      >
+                        {a.status}
+                      </span>
+                    </div>
+                    <p className="text-sm text-muted">
+                      {a.address}, {a.city}
                     </p>
+                    {a.description && (
+                      <p className="max-w-2xl text-sm text-ink/80">{a.description}</p>
+                    )}
                   </div>
-                  <p className="text-sm text-gray-600">
+                  <p className="eyebrow whitespace-nowrap">
                     {new Date(a.createdAt).toLocaleDateString()}
                   </p>
                 </div>
 
-                <div className="text-sm bg-gray-50 rounded-md p-3">
-                  <p className="font-medium">Owner: {a.venueOwner.fullName}</p>
-                  <p>
-                    {a.venueOwner.user.email} · {a.venueOwner.phoneNumber} · CNIC{" "}
-                    {a.venueOwner.cnic}
-                  </p>
-                  <p>Business reg: {a.businessRegistration || "—"}</p>
+                {/* Venue details */}
+                <div className="grid grid-cols-1 gap-x-6 gap-y-4 rounded-2xl bg-mist/60 p-4 sm:grid-cols-3">
+                  <div>
+                    <p className="label">City</p>
+                    <p className="text-sm font-semibold text-ink">{a.city}</p>
+                  </div>
+                  <div>
+                    <p className="label">Venue size</p>
+                    <p className="text-sm font-semibold text-ink">{a.sizeOfVenue}</p>
+                  </div>
+                  <div>
+                    <p className="label">Court price range</p>
+                    <p className="text-sm font-semibold text-ink">{a.courtsPriceRange}</p>
+                  </div>
                 </div>
 
-                <div className="flex gap-2 pt-2">
+                {/* Owner details */}
+                <div className="space-y-3">
+                  <p className="eyebrow">Owner</p>
+                  <div className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+                    <div className="min-w-0">
+                      <p className="label">Full name</p>
+                      <p className="truncate text-sm font-semibold text-ink">
+                        {a.venueOwner.fullName}
+                      </p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="label">Email</p>
+                      <p className="truncate text-sm text-ink">{a.venueOwner.user.email}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="label">Phone</p>
+                      <p className="text-sm text-ink">{a.venueOwner.phoneNumber}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="label">CNIC</p>
+                      <p className="text-sm text-ink">{a.venueOwner.cnic}</p>
+                    </div>
+                    <div className="min-w-0 sm:col-span-2">
+                      <p className="label">Business registration</p>
+                      <p className="truncate text-sm text-ink">{a.businessRegistration || "—"}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex flex-col gap-2 border-t border-line pt-5 sm:flex-row sm:flex-wrap">
                   {a.status !== "APPROVED" && (
                     <button
+                      type="button"
                       disabled={busyId === a.id}
                       onClick={() => handleReview(a.id, "APPROVED")}
-                      className="bg-green-600 text-white rounded-md px-4 py-2 disabled:opacity-50"
+                      className="btn-accent w-full sm:w-auto"
                     >
                       Approve
                     </button>
                   )}
                   {a.status !== "REJECTED" && (
                     <button
+                      type="button"
                       disabled={busyId === a.id}
                       onClick={() => handleReview(a.id, "REJECTED")}
-                      className="border border-red-600 text-red-600 rounded-md px-4 py-2 disabled:opacity-50"
+                      className="btn-danger w-full sm:w-auto"
                     >
                       {a.status === "APPROVED" ? "Revoke approval" : "Reject"}
                     </button>
                   )}
                 </div>
-              </div>
+              </article>
             ))}
           </div>
         )}

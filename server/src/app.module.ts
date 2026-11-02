@@ -29,6 +29,6 @@ import { StorageModule } from './storage/storage.module';
     StorageModule,
   ],
   controllers: [AppController, AuthController],
-  providers: [AppService, AuthapiService, StorageService],
+  providers: [AppService, AuthapiService],
 })
 export class AppModule {}

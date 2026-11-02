@@ -1,9 +1,40 @@
-
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ------------------------------------------------------------------
+   Court Connect design tokens — "court club" look:
+   deep forest green + electric lime + warm off-white, condensed
+   uppercase display type, pill buttons, big rounded photo cards.
+   ------------------------------------------------------------------ */
+@theme {
+  --color-forest: #0b3b2e;        /* primary dark surface (hero, dark cards) */
+  --color-forest-deep: #072a21;   /* darker forest (hover / gradients) */
+  --color-lime: #d9ff4f;          /* accent: CTA, active chips, highlights */
+  --color-lime-dark: #bfe63a;
+  --color-cream: #f3f1ea;         /* page background */
+  --color-sand: #ffffff;          /* card surface */
+  --color-mist: #e9e7df;          /* alt surface, inputs, skeletons */
+  --color-ink: #0f1a16;           /* primary text + black pill buttons */
+  --color-muted: #6f7a74;         /* secondary text */
+  --color-line: #e1dfd6;          /* borders */
+  --color-success: #1f7a4d;
+  --color-success-soft: #e3f3ea;
+  --color-warning: #a16a0b;
+  --color-warning-soft: #fbf1d9;
+  --color-danger: #c0392b;
+  --color-danger-soft: #fbe7e4;
+
+  /* legacy aliases (old palette names still used in a few places) */
+  --color-maroon: #0b3b2e;
+  --color-terracotta: #0b3b2e;
+  --color-terracotta-dark: #072a21;
+  --color-sun: #d9ff4f;
+  --color-teal: #1f7a4d;
+  --color-cream-dark: #e9e7df;
+
+  --font-heading: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+
+  --radius-pill: 999px;
 }
 
 html,
@@ -13,7 +44,113 @@ body {
 
 body {
   margin: 0;
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  color: var(--color-ink);
+  background: var(--color-cream);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Browser autofill ka neela bg hatao */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--color-ink);
+  -webkit-box-shadow: 0 0 0 1000px #fff inset;
+  transition: background-color 9999s ease-out;
+}
+
+/* Display type: condensed Archivo (variable width axis) */
+h1,
+h2,
+h3,
+.font-heading {
+  font-family: var(--font-heading);
+  font-stretch: 82%;
+  letter-spacing: -0.02em;
+}
+
+/* Reusable pieces */
+@layer components {
+  /* buttons */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-pill bg-ink px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-forest disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-accent {
+    @apply inline-flex items-center justify-center gap-2 rounded-pill bg-lime px-5 py-2.5 text-sm font-semibold text-ink transition hover:bg-lime-dark disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-outline {
+    @apply inline-flex items-center justify-center gap-2 rounded-pill border border-ink/15 bg-transparent px-5 py-2.5 text-sm font-semibold text-ink transition hover:border-ink hover:bg-ink hover:text-white disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-pill px-4 py-2 text-sm font-semibold text-muted transition hover:bg-mist hover:text-ink disabled:opacity-50;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-pill border border-danger/40 px-5 py-2.5 text-sm font-semibold text-danger transition hover:bg-danger hover:text-white disabled:opacity-50;
+  }
+
+  /* surfaces */
+  .card {
+    @apply rounded-3xl border border-line bg-sand p-5;
+  }
+  .card-dark {
+    @apply rounded-3xl bg-forest p-6 text-white;
+  }
+  .card-lime {
+    @apply rounded-3xl bg-lime p-6 text-ink;
+  }
+
+  /* forms */
+  .input {
+    @apply w-full rounded-2xl border border-transparent bg-mist/70 px-4 py-3 text-sm text-ink placeholder:text-muted/70 transition focus:border-ink focus:bg-white focus:outline-none disabled:opacity-60;
+  }
+  .label {
+    @apply mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-muted;
+  }
+
+  /* text */
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.2em] text-muted;
+  }
+  .display {
+    @apply font-heading text-5xl font-black uppercase leading-[0.9] tracking-tight sm:text-7xl;
+  }
+  .page-title {
+    @apply font-heading text-4xl font-black uppercase leading-[0.95] tracking-tight text-ink sm:text-5xl;
+  }
+  .section-title {
+    @apply font-heading text-2xl font-extrabold uppercase tracking-tight text-ink;
+  }
+
+  /* chips + badges */
+  .chip {
+    @apply inline-flex items-center rounded-pill border border-line bg-white px-3 py-1 text-xs font-medium text-ink;
+  }
+  .chip-active {
+    @apply inline-flex items-center rounded-pill border border-lime bg-lime px-3 py-1 text-xs font-semibold text-ink;
+  }
+  .badge-success {
+    @apply inline-flex items-center rounded-pill bg-success-soft px-2.5 py-0.5 text-xs font-semibold text-success;
+  }
+  .badge-warning {
+    @apply inline-flex items-center rounded-pill bg-warning-soft px-2.5 py-0.5 text-xs font-semibold text-warning;
+  }
+  .badge-danger {
+    @apply inline-flex items-center rounded-pill bg-danger-soft px-2.5 py-0.5 text-xs font-semibold text-danger;
+  }
+
+  /* layout */
+  .page {
+    @apply mx-auto w-full max-w-6xl px-4 py-10;
+  }
+  .page-narrow {
+    @apply mx-auto w-full max-w-3xl px-4 py-10;
+  }
+
+  /* modals */
+  .modal-backdrop {
+    @apply fixed inset-0 z-50 flex items-center justify-center bg-ink/50 p-4 backdrop-blur-sm;
+  }
+  .modal {
+    @apply w-full max-w-md rounded-3xl bg-sand p-6 shadow-2xl;
+  }
 }

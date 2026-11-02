@@ -41,7 +41,7 @@ const CourtModelUpload = ({ courtId, hasModel, onChanged }: Props) => {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = ""; // same file dobara choose ho sake
     }
-  }; 
+  };
 
   const handleRemove = async () => {
 if (!window.confirm("Remove the 3D scan from this court?")) return;
@@ -58,7 +58,7 @@ if (!window.confirm("Remove the 3D scan from this court?")) return;
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center gap-3">
       <input
         ref={inputRef}
         type="file"
@@ -69,15 +69,16 @@ if (!window.confirm("Remove the 3D scan from this court?")) return;
       />
       <label
         htmlFor={`model-upload-${courtId}`}
-        className={`border rounded-md px-3 py-1.5 text-sm cursor-pointer ${busy ? "opacity-50 pointer-events-none" : ""}`}
+        className={`btn-outline cursor-pointer ${busy ? "pointer-events-none opacity-50" : ""}`}
       >
-{busy ? "Uploading..." : hasModel ? "Replace 3D scan" : "Add 3D scan (.glb)"}
+        {busy ? "Uploading..." : hasModel ? "Replace 3D scan" : "Add 3D scan (.glb)"}
       </label>
       {hasModel && (
         <button
+          type="button"
           onClick={handleRemove}
           disabled={busy}
-          className="text-sm text-red-600 underline disabled:opacity-50"
+          className="btn-ghost text-danger hover:text-danger"
         >
           Remove
         </button>

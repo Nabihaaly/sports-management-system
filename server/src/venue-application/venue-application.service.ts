@@ -6,10 +6,14 @@ import {
 import { ApplicationStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateApplicationDto } from './dto/create-application.dto';
+import { BadRequestException } from '@nestjs/common'; // existing import mein
+import { StorageService } from '../storage/storage.service';
+import { assertImage, imagePath, IMAGE_BUCKET } from '../storage/image.util';
 
 @Injectable()
 export class VenueApplicationService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService,
+    private storage: StorageService) {}
 
   // Owner ki pehli application: owner ki personal details + pehla venue, ek saath.
   // Venue PENDING status se banta hai (schema default); admin baad mein review karta hai.
@@ -122,5 +126,46 @@ export class VenueApplicationService {
     ]);
 
     return updatedVenue;
+  }
+    // Photos upload (application form se pehle). Venue row abhi nahi hoti → folder venues/<userId>/
+  async uploadImages(userId: string, files?: Express.Multer.File[]) {
+    if (!files?.length) {
+      throw new BadRequestException('No files uploaded (field name: files)');
+    }
+    const urls: string[] = [];
+    for (const f of files) {
+      const { contentType, ext } = assertImage(f);
+      urls.push(
+        await this.storage.upload(
+          IMAGE_BUCKET,
+          imagePath(`venues/${userId}`, ext),
+          f.buffer,
+          contentType,
+        ),
+      );
+    }
+    return { urls };
+  }
+
+  // Venue ki image list replace. Jo URL list se nikla aur humari bucket ka tha → file delete.
+  async setImages(userId: string, venueId: string, images: string[]) {
+    const venue = await this.prisma.venueApplicationDetails.findFirst({
+      where: { id: venueId, venueOwner: { userId } },
+      select: { id: true, images: true },
+    });
+    if (!venue) throw new NotFoundException('Venue not found');
+
+    const updated = await this.prisma.venueApplicationDetails.update({
+      where: { id: venue.id },
+      data: { images },
+      select: { id: true, images: true },
+    });
+
+    const removed = venue.images.filter((u) => !images.includes(u));
+    for (const u of removed) {
+      const p = this.storage.pathFromUrl(IMAGE_BUCKET, u);
+      if (p) await this.storage.remove(IMAGE_BUCKET, p);
+    }
+    return updated;
   }
 }

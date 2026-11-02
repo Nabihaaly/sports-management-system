@@ -37,101 +37,124 @@ const Page = () => {
 
   return (
     <RequireRole role="PLAYER">
-      <div className="mx-auto max-w-3xl p-6">
+      <div className="page-narrow">
 
         <Link
           href="/dashboard"
-          className="mb-6 inline-block text-sm text-gray-600 hover:text-black"
+          className="btn-ghost -ml-4 mb-6"
         >
-          ← Back to Venues
+          ← Back to venues
         </Link>
 
-        {loading && <p>Loading profile...</p>}
+        {loading && (
+          <div className="space-y-4" aria-busy="true">
+            <div className="h-56 animate-pulse rounded-3xl bg-mist" />
+            <div className="h-32 animate-pulse rounded-3xl bg-mist" />
+          </div>
+        )}
 
         {error && (
-          <p className="text-red-600">{error}</p>
+          <p className="text-sm text-danger">{error}</p>
         )}
 
         {!loading && !error && profile && (
-          <div className="rounded-xl border bg-white p-6">
+          <div className="space-y-5">
 
             {/* Profile Header */}
-            <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
+            <div className="card p-6 sm:p-8">
+              <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
 
-              {profile.profilePicture ? (
-                <img
-                  src={profile.profilePicture}
-                  alt={profile.displayName}
-                  className="h-28 w-28 rounded-full border object-cover"
-                />
-              ) : (
-                <div className="flex h-28 w-28 items-center justify-center rounded-full bg-gray-200 text-4xl font-semibold">
-                  {profile.displayName.charAt(0).toUpperCase()}
+                {profile.profilePicture ? (
+                  <img
+                    src={profile.profilePicture}
+                    alt={profile.displayName}
+                    className="h-32 w-32 shrink-0 rounded-full object-cover ring-4 ring-lime"
+                  />
+                ) : (
+                  <div className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full bg-forest font-heading text-5xl font-black text-lime ring-4 ring-lime">
+                    {profile.displayName.charAt(0).toUpperCase()}
+                  </div>
+                )}
+
+                <div className="text-center sm:text-left">
+                  <p className="eyebrow">Player card</p>
+
+                  <h1 className="page-title mt-1">
+                    {profile.displayName}
+                  </h1>
+
+                  <div className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start">
+                    <span className="chip">{profile.city}</span>
+                    {profile.skillLevel && (
+                      <span className="chip-active">{profile.skillLevel}</span>
+                    )}
+                    <span
+                      className={
+                        profile.availableForMatching
+                          ? "badge-success"
+                          : "badge-warning"
+                      }
+                    >
+                      {profile.availableForMatching
+                        ? "Available for matching"
+                        : "Not available for matching"}
+                    </span>
+                  </div>
                 </div>
-              )}
+              </div>
 
-              <div className="text-center sm:text-left">
-                <h1 className="text-2xl font-bold">
-                  {profile.displayName}
-                </h1>
-
-                <p className="mt-1 text-gray-500">
-                  {profile.city}
-                </p>
-
-                <p
-                  className={`mt-3 text-sm font-medium ${
-                    profile.availableForMatching
-                      ? "text-green-600"
-                      : "text-gray-500"
-                  }`}
-                >
-                  {profile.availableForMatching
-                    ? "Available for matching"
-                    : "Not available for matching"}
+              {/* Bio */}
+              <div className="mt-6 border-t border-line pt-6">
+                <h2 className="eyebrow">About</h2>
+                <p className="mt-2 text-ink">
+                  {profile.bio || "No bio added yet."}
                 </p>
               </div>
             </div>
 
-            <hr className="my-6" />
+            {/* Stats */}
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div className="card-dark">
+                <p className="eyebrow text-lime">Skill level</p>
+                <p className="mt-2 font-heading text-3xl font-black uppercase leading-[0.95] tracking-tight text-white">
+                  {profile.skillLevel || "—"}
+                </p>
+              </div>
 
-            {/* Bio */}
-            <div className="mb-5">
-              <h2 className="mb-2 font-semibold">About</h2>
-              <p className="text-gray-600">
-                {profile.bio || "No bio added yet."}
-              </p>
-            </div>
+              <div className="card-dark">
+                <p className="eyebrow text-lime">Home city</p>
+                <p className="mt-2 font-heading text-3xl font-black uppercase leading-[0.95] tracking-tight text-white">
+                  {profile.city}
+                </p>
+              </div>
 
-            {/* Skill Level */}
-            <div className="mb-5">
-              <h2 className="mb-2 font-semibold">
-                Skill Level
-              </h2>
-              <p className="text-gray-600">
-                {profile.skillLevel || "Not specified"}
-              </p>
+              <div className="card-dark">
+                <p className="eyebrow text-lime">Sports</p>
+                <p className="mt-2 font-heading text-3xl font-black uppercase leading-[0.95] tracking-tight text-white">
+                  {profile.preferredSports.length}
+                </p>
+              </div>
             </div>
 
             {/* Preferred Sports */}
-            <div>
-              <h2 className="mb-2 font-semibold">
-                Preferred Sports
+            <div className="card p-6">
+              <h2 className="eyebrow">
+                Preferred sports
               </h2>
 
               {profile.preferredSports.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-wrap gap-2">
                   {profile.preferredSports.map((sport) => (
                     <span
                       key={sport}
-                      className="rounded-full bg-gray-100 px-4 py-2 text-sm"
+                      className="chip-active"
                     >
                       {sport}
                     </span>
                   ))}
                 </div>
               ) : (
-                <p className="text-gray-500">
+                <p className="mt-2 text-sm text-muted">
                   No preferred sports added.
                 </p>
               )}

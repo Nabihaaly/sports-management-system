@@ -54,29 +54,60 @@ const PendingPage = () => {
   }, [router]);
 
   if (loading) {
-    return <p className="text-center mt-20">Checking your application status...</p>;
+    return (
+      <div className="page-narrow flex justify-center pt-20">
+        <div
+          className="w-full max-w-md space-y-4"
+          aria-busy="true"
+          aria-live="polite"
+        >
+          <div className="h-56 animate-pulse rounded-3xl bg-mist" />
+          <p className="eyebrow text-center">Checking your application status...</p>
+        </div>
+      </div>
+    );
   }
 
+  const rejected = status === "REJECTED";
+
   return (
-    <div className="max-w-xl mx-auto mt-20 text-center space-y-4">
-      {status === "REJECTED" ? (
-        <>
-          <h1 className="text-2xl font-semibold text-red-600">Application rejected</h1>
-          <p>
-            Unfortunately your venue application was not approved. Please contact
-            support for more details.
+    <div className="page-narrow flex justify-center pt-20">
+      <div className="card w-full max-w-md space-y-6 p-8 text-center">
+        <p className="eyebrow">Venue application</p>
+
+        <div className="flex justify-center">
+          <span
+            className={`${rejected ? "badge-danger" : "badge-warning"} px-4 py-1.5 text-sm`}
+          >
+            {rejected ? "Rejected" : "Pending review"}
+          </span>
+        </div>
+
+        <h1 className="font-heading text-4xl font-black uppercase leading-[0.95] tracking-tight text-ink">
+          {rejected ? "Application rejected" : "Under review"}
+        </h1>
+
+        <p className="text-sm text-muted">
+          {rejected
+            ? "Unfortunately your venue application was not approved. Please contact support for more details."
+            : "Your application is under review. This page will take you to your dashboard automatically once it is approved."}
+        </p>
+
+        <div className="rounded-2xl bg-mist p-4 text-left">
+          <p className="eyebrow">{rejected ? "From the team" : "What happens next"}</p>
+          <p className="mt-1.5 text-sm text-ink">
+            {rejected
+              ? "Reach out to support with your venue name and we'll walk you through what was missing."
+              : "We check every venue by hand. Most reviews finish within a couple of days, and this page refreshes on its own."}
           </p>
-        </>
-      ) : (
-        <>
-          <h1 className="text-2xl font-semibold">Your status is pending</h1>
-          <p>
-            Your application is under review. This page will take you to your
-            dashboard automatically once it is approved.
+        </div>
+
+        {error && (
+          <p className="rounded-2xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">
+            {error}
           </p>
-        </>
-      )}
-      {error && <p className="text-red-600">{error}</p>}
+        )}
+      </div>
     </div>
   );
 };
