@@ -1,4 +1,3 @@
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -174,6 +173,7 @@ model Court {
   operatingDays          String[]
   isActive               Boolean   @default(true)
   model3dUrl             String?
+  images String[] @default([])
 
   venue          VenueApplicationDetails @relation(fields: [venueId], references: [id], onDelete: Cascade)
   availabilities CourtAvailability[]
@@ -290,6 +290,46 @@ model BookingParticipant {
   @@index([userId, invitationStatus])
   @@index([bookingId, invitationStatus])
   @@index([bookingId, paymentStatus])
+}
+
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+}
+
+model Friend {
+  id String @id @default(cuid())
+
+  senderId   String
+  receiverId String
+
+  status FriendRequestStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sender   User @relation("FriendRequestSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("FriendRequestReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+  @@index([receiverId, status])
+  @@index([senderId, status])
+}
+
+model MatchWithPlayers {
+  id             String   @id @default(cuid())
+  userId         String
+  preferredSport String
+  availableFrom  DateTime
+  availableUntil DateTime
+  budget       Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([availableFrom, availableUntil])
+  @@map("matchwithplayers")
 }
 
 enum FriendRequestStatus {

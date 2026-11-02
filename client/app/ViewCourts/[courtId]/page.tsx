@@ -3,7 +3,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import AddCourts from "@/Components/AddCourt";
-import { CourtDetail, getCourt, WeekDay } from "@/services/courts";
+import {
+  CourtDetail,
+  getCourt,
+  setCourtImages,
+  uploadCourtImages,
+  WeekDay,
+} from "@/services/courts";
+import ImagePicker from "@/Components/ImagePicker";
+import Court3DViewer from "@/Components/Court3DViewer";
+import CourtModelUpload from "@/Components/CourtModelUpload";
 
 const DAYS: { value: WeekDay; label: string; short: string }[] = [
   { value: "MONDAY", label: "Monday", short: "Mon" },
@@ -28,9 +37,9 @@ const format12h = (t: string) => {
 };
 
 const Detail = ({ label, value }: { label: string; value: React.ReactNode }) => (
-  <div>
-    <p className="text-sm text-gray-500">{label}</p>
-    <p className="font-medium">{value}</p>
+  <div className="rounded-2xl bg-mist/60 p-4">
+    <p className="eyebrow">{label}</p>
+    <p className="mt-1 font-heading text-lg font-bold text-ink">{value}</p>
   </div>
 );
 
@@ -76,47 +85,112 @@ const Page = () => {
     .sort((a, b) => a.startTime.localeCompare(b.startTime));
 
   return (
-    <div className="max-w-3xl mx-auto p-4 space-y-6">
-      <div className="flex justify-between items-center">
-        <button onClick={() => router.back()} className="underline text-sm">
+    <div className="page-narrow space-y-8">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <button type="button" onClick={() => router.back()} className="btn-ghost -ml-4">
           &larr; Back to courts
         </button>
         {court && (
           <button
+            type="button"
             onClick={() => setShowEdit(true)}
-            className="bg-black text-white rounded-md px-4 py-2"
+            className="btn-primary"
           >
             Edit court
           </button>
         )}
       </div>
 
-      {loading && <p>Loading court...</p>}
-      {error && <p className="text-red-600">{error}</p>}
+      {loading && (
+        <div className="space-y-4" aria-busy="true" aria-live="polite">
+          <div className="h-10 w-2/3 animate-pulse rounded-3xl bg-mist" />
+          <div className="h-40 animate-pulse rounded-3xl bg-mist" />
+          <div className="h-40 animate-pulse rounded-3xl bg-mist" />
+        </div>
+      )}
+      {error && (
+        <p className="rounded-2xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">
+          {error}
+        </p>
+      )}
 
       {court && (
         <>
-          <div className="space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-semibold">{court.courtName}</h1>
-              <span className="text-xs border rounded-full px-2 py-0.5">
-                {court.courtType === "INDOOR" ? "Indoor" : "Outdoor"}
-              </span>
-              {!court.isActive && (
-                <span className="text-xs border border-red-600 text-red-600 rounded-full px-2 py-0.5">
-                  Inactive
-                </span>
-              )}
-            </div>
-            <p className="text-sm">
+          {/* Header */}
+          <div className="space-y-3">
+            <p className="eyebrow">
               {court.venue.venueName} · {court.venue.city}
             </p>
-            {court.description && <p className="pt-2">{court.description}</p>}
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="page-title">{court.courtName}</h1>
+              <div className="flex flex-wrap gap-2">
+                <span className="chip">
+                  {court.courtType === "INDOOR" ? "Indoor" : "Outdoor"}
+                </span>
+                <span className="chip">{court.sport}</span>
+                {!court.isActive && (
+                  <span className="badge-danger">Inactive</span>
+                )}
+              </div>
+            </div>
+            {court.description && (
+              <p className="max-w-2xl text-muted">{court.description}</p>
+            )}
           </div>
 
-          <div className="border rounded-lg p-4 space-y-4">
-            <h2 className="font-semibold">Details</h2>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {/* Photos */}
+          <section className="card space-y-4">
+            <div>
+              <p className="eyebrow">Photos</p>
+              <h2 className="section-title">Gallery</h2>
+              <p className="mt-1 text-xs text-muted">
+                Players see these on the court page. First photo is the cover.
+              </p>
+            </div>
+            <ImagePicker
+              images={court.images ?? []}
+              onChange={async (images) => {
+                await setCourtImages(court.id, images);
+                await loadCourt();
+              }}
+              upload={(files) => uploadCourtImages(court.id, files)}
+            />
+          </section>
+
+          {/* 3D view */}
+          <section className="card space-y-4">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="eyebrow">3D view</p>
+                <h2 className="section-title">Walkthrough</h2>
+                {!court.model3dUrl && (
+                  <p className="mt-1 text-xs text-muted">
+                    Optional — let players walk through your court before booking.
+                  </p>
+                )}
+              </div>
+              <CourtModelUpload
+                courtId={court.id}
+                hasModel={!!court.model3dUrl}
+                onChanged={loadCourt}
+              />
+            </div>
+
+            {court.model3dUrl && (
+              <Court3DViewer
+                src={court.model3dUrl}
+                alt={`3D view of ${court.courtName}`}
+              />
+            )}
+          </section>
+
+          {/* Details */}
+          <section className="card space-y-4">
+            <div>
+              <p className="eyebrow">Details</p>
+              <h2 className="section-title">At a glance</h2>
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
               <Detail label="Sport" value={court.sport} />
               <Detail label="Max players" value={court.maxPlayers} />
               <Detail label="Price per slot" value={`Rs. ${court.pricePerSlotPKR}`} />
@@ -135,24 +209,35 @@ const Page = () => {
                   .join(", ")}
               />
             </div>
-          </div>
+          </section>
 
-          <div className="border rounded-lg p-4 space-y-3">
-            <h2 className="font-semibold">Availability</h2>
+          {/* Availability */}
+          <section className="card space-y-4">
+            <div>
+              <p className="eyebrow">Availability</p>
+              <h2 className="section-title">Bookable slots</h2>
+            </div>
 
             {daysWithSlots.length === 0 ? (
-              <p className="text-sm">No slots set up yet.</p>
+              <div className="rounded-3xl border border-dashed border-line p-10 text-center">
+                <p className="font-heading text-xl font-black uppercase tracking-tight text-ink">
+                  No slots yet
+                </p>
+                <p className="mt-2 text-sm text-muted">
+                  Edit the court to set up its weekly schedule.
+                </p>
+              </div>
             ) : (
               <>
-                <div className="flex items-center gap-2">
-                  <label htmlFor="availability-day" className="text-sm">
+                <div className="flex flex-wrap items-center gap-3">
+                  <label htmlFor="availability-day" className="label mb-0">
                     Day
                   </label>
                   <select
                     id="availability-day"
                     value={currentDay}
                     onChange={(e) => setSelectedDay(e.target.value as WeekDay)}
-                    className="border rounded-md p-2"
+                    className="input w-auto min-w-[12rem]"
                   >
                     {daysWithSlots.map((d) => {
                       const count = activeSlots.filter(
@@ -167,11 +252,11 @@ const Page = () => {
                   </select>
                 </div>
 
-                <ul className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                <ul className="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
                   {daySlots.map((s, i) => (
                     <li
                       key={s.id ?? i}
-                      className="border rounded-md px-3 py-2 text-sm text-center"
+                      className="rounded-2xl bg-mist px-3 py-2.5 text-center text-sm font-medium text-ink"
                     >
                       {format12h(s.startTime)} – {format12h(s.endTime)}
                     </li>
@@ -179,7 +264,7 @@ const Page = () => {
                 </ul>
               </>
             )}
-          </div>
+          </section>
         </>
       )}
 

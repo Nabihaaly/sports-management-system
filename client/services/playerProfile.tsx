@@ -227,4 +227,28 @@ export async function declineFriendRequest(requestId: string) {
 
   return data;
 }
+// Picture upload — multipart; Content-Type header MAT likho, browser boundary ke saath khud lagata hai
+export async function uploadProfilePicture(
+  file: File,
+): Promise<{ profile: PlayerProfile }> {
+  const form = new FormData();
+  form.append("file", file);
+  const response = await fetch(`${BASE}/picture`, {
+    method: "POST",
+    credentials: "include",
+    body: form,
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data?.message || "Upload failed");
+  return data;
+}
 
+export async function removeProfilePicture(): Promise<{ profile: PlayerProfile | null }> {
+  const response = await fetch(`${BASE}/picture`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data?.message || "Failed");
+  return data;
+}

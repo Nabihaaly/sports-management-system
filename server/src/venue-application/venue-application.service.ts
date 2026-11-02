@@ -6,16 +6,23 @@ import {
 import { ApplicationStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateApplicationDto } from './dto/create-application.dto';
+import { BadRequestException } from '@nestjs/common'; // existing import mein
+import { StorageService } from '../storage/storage.service';
+import { assertImage, imagePath, IMAGE_BUCKET } from '../storage/image.util';
 
 @Injectable()
 export class VenueApplicationService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService,
+    private storage: StorageService) {}
 
+  // Owner ki pehli application: owner ki personal details + pehla venue, ek saath.
+  // Venue PENDING status se banta hai (schema default); admin baad mein review karta hai.
   async createApplication(userId: string, dto: CreateApplicationDto) {
     const { venueOwner, venueDetails } = dto;
 
     try {
-      // Save owner information
+      // NOTE: do alag create hain, transaction nahi — agar venue create fail ho
+      // to owner row ban chuki hogi. Behtar: $transaction (jaise setVenueActive mein).
       const owner = await this.prisma.venueOwnerPersonal.create({
         data: {
           userId,
@@ -25,7 +32,6 @@ export class VenueApplicationService {
         },
       });
 
-      // Save venue information
       const venue = await this.prisma.venueApplicationDetails.create({
         data: {
           venueOwnerId: owner.id,
@@ -42,6 +48,8 @@ export class VenueApplicationService {
 
       return { owner, venue };
     } catch (error) {
+      // P2002 = Prisma unique constraint violation.
+      // Yahan do unique fields hain: userId (ek user = ek owner profile) aur cnic.
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
@@ -50,40 +58,53 @@ export class VenueApplicationService {
           'An owner with this CNIC is already registered',
         );
       }
-
       throw error;
     }
   }
 
-  // Owner ki state:
-  //   isVerified = uska koi ek venue APPROVED hai (owner-level approval derive hoti hai)
-  //   status     = sabse naye venue application ka status (null = abhi koi application nahi)
+  // Owner ka "effective status" — frontend (redirect, applicationStatus page, Navbar)
+  // sirf is ek field pe chalta hai:
+  //
+  //   null      → owner ne abhi koi application nahi bhari     → /venueApplication
+  //   APPROVED  → owner ka KOI EK venue approved hai            → /venueDashboard
+  //   PENDING / REJECTED → sabse naye venue ka status          → /applicationStatus
+  //
+  // "koi ek approved" ka rule isliye: verified owner naya venue add kare jo PENDING ho,
+  // to wo dashboard se bahar na ho jaye. Owner-level verification yahin se derive hoti hai,
+  // DB mein alag column nahi.
   async getStatus(userId: string) {
     const owner = await this.prisma.venueOwnerPersonal.findUnique({
       where: { userId },
       select: {
         venues: {
-          select: {
-            id: true,
-            venueName: true,
-            status: true,
-          },
+          orderBy: { createdAt: 'desc' }, // [0] = sabse naya venue
+          select: { status: true },
         },
       },
     });
 
+    if (!owner || owner.venues.length === 0) {
+      return { status: null };
+    }
+
+    const anyApproved = owner.venues.some(
+      (v) => v.status === ApplicationStatus.APPROVED,
+    );
+
     return {
-      status: owner?.venues[0]?.status ?? null,
+      status: anyApproved ? ApplicationStatus.APPROVED : owner.venues[0].status,
     };
   }
 
-  // Activate / deactivate an approved venue together with all of its courts.
-  // Both updates run in one transaction so they never get out of sync.
+  // Venue activate / deactivate (SRS FR-14: deactivate without deleting history).
+  // Sirf owner ka apna, APPROVED venue — isliye where mein teeno conditions.
+  // Venue aur uske saare courts ek transaction mein update hote hain,
+  // taake venue inactive aur court active jaisi state kabhi na bane.
   async setVenueActive(userId: string, venueId: string, isActive: boolean) {
     const venue = await this.prisma.venueApplicationDetails.findFirst({
       where: {
         id: venueId,
-        venueOwner: { userId },
+        venueOwner: { userId },             // ownership check (relation filter)
         status: ApplicationStatus.APPROVED,
       },
       select: { id: true },
@@ -105,5 +126,46 @@ export class VenueApplicationService {
     ]);
 
     return updatedVenue;
+  }
+    // Photos upload (application form se pehle). Venue row abhi nahi hoti → folder venues/<userId>/
+  async uploadImages(userId: string, files?: Express.Multer.File[]) {
+    if (!files?.length) {
+      throw new BadRequestException('No files uploaded (field name: files)');
+    }
+    const urls: string[] = [];
+    for (const f of files) {
+      const { contentType, ext } = assertImage(f);
+      urls.push(
+        await this.storage.upload(
+          IMAGE_BUCKET,
+          imagePath(`venues/${userId}`, ext),
+          f.buffer,
+          contentType,
+        ),
+      );
+    }
+    return { urls };
+  }
+
+  // Venue ki image list replace. Jo URL list se nikla aur humari bucket ka tha → file delete.
+  async setImages(userId: string, venueId: string, images: string[]) {
+    const venue = await this.prisma.venueApplicationDetails.findFirst({
+      where: { id: venueId, venueOwner: { userId } },
+      select: { id: true, images: true },
+    });
+    if (!venue) throw new NotFoundException('Venue not found');
+
+    const updated = await this.prisma.venueApplicationDetails.update({
+      where: { id: venue.id },
+      data: { images },
+      select: { id: true, images: true },
+    });
+
+    const removed = venue.images.filter((u) => !images.includes(u));
+    for (const u of removed) {
+      const p = this.storage.pathFromUrl(IMAGE_BUCKET, u);
+      if (p) await this.storage.remove(IMAGE_BUCKET, p);
+    }
+    return updated;
   }
 }

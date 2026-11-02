@@ -87,34 +87,87 @@ const Calendar = ({
   ];
 
   return (
-    <div className="rounded-xl border p-3">
-      <div className="mb-3 flex items-center justify-between">
+    <div className="rounded-3xl border border-line bg-white p-4">
+
+      {/* Month and year navigation */}
+
+      <div className="mb-4 flex items-center justify-between gap-2">
+
         <button
           type="button"
-          disabled={isCurrentMonth}
-          onClick={() => setView(new Date(year, month - 1, 1))}
-          className="rounded px-3 py-1 text-lg disabled:opacity-30"
+          disabled={isFirstMonthOfYear}
+          onClick={() =>
+            setView(new Date(year, month - 1, 1))
+          }
+          aria-label="Previous month"
+          className="btn-ghost h-9 w-9 px-0 text-lg disabled:opacity-30"
         >
           ‹
         </button>
 
-        <p className="font-semibold">
-          {MONTHS[month]} {year}
-        </p>
+        <div className="flex gap-2">
+
+          <select
+            value={month}
+            onChange={(e) =>
+              setView(
+                new Date(year, Number(e.target.value), 1)
+              )
+            }
+            aria-label="Month"
+            className="input w-auto rounded-pill py-2 font-semibold"
+          >
+            {MONTHS.map((name, index) => (
+              <option key={name} value={index}>
+                {name}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={year}
+            onChange={(e) =>
+              setView(
+                new Date(Number(e.target.value), month, 1)
+              )
+            }
+            aria-label="Year"
+            className="input w-auto rounded-pill py-2 font-semibold"
+          >
+            {years.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+
+        </div>
 
         <button
           type="button"
-          onClick={() => setView(new Date(year, month + 1, 1))}
-          className="rounded px-3 py-1 text-lg"
+          disabled={isLastMonthOfYear}
+          onClick={() =>
+            setView(new Date(year, month + 1, 1))
+          }
+          aria-label="Next month"
+          className="btn-ghost h-9 w-9 px-0 text-lg disabled:opacity-30"
         >
           ›
         </button>
       </div>
 
-      <div className="grid grid-cols-7 gap-1 text-center text-xs text-gray-500">
-        {["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].map((d) => (
-          <span key={d}>{d}</span>
-        ))}
+      {/* Weekday headings */}
+
+      <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+
+        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map(
+          (day) => (
+            <div key={day} className="py-2">
+              {day}
+            </div>
+          )
+        )}
+
       </div>
 
       <div className="mt-1 grid grid-cols-7 gap-1">
@@ -127,6 +180,8 @@ const Calendar = ({
             allowedWeekdays.includes(WEEKDAYS[date.getDay()]);
           const isSelected = iso === selectedDate;
 
+          const isToday = date.getTime() === today.getTime();
+
           return (
             <button
               key={iso}
@@ -134,18 +189,25 @@ const Calendar = ({
               disabled={!enabled}
               onClick={() => onSelect(iso)}
               className={`rounded py-2 text-sm ${
+              aria-pressed={isSelected}
+              className={`aspect-square rounded-2xl text-sm font-semibold transition ${
                 isSelected
-                  ? "bg-green-600 text-white"
+                  ? "bg-ink text-white"
                   : enabled
-                  ? "border border-green-500 hover:bg-green-50"
-                  : "cursor-not-allowed text-gray-300"
-              }`}
+                  ? "bg-mist/60 text-ink hover:bg-lime"
+                  : "cursor-not-allowed text-muted/50"
+              } ${isToday && !isSelected ? "ring-1 ring-ink" : ""}`}
             >
               {date.getDate()}
             </button>
           );
         })}
       </div>
+
+      <p className="mt-3 text-xs text-muted">
+        Only future operating days in {currentYear} can be selected.
+      </p>
+
     </div>
   );
 };
@@ -344,67 +406,137 @@ setBookingType("SINGLE");
 
   return (
     <RequireRole role="PLAYER">
-      <div className="mx-auto max-w-3xl p-6">
-        {loadingCourt && <p>Loading court details...</p>}
+      <div className="page-narrow">
 
-        {error && !court && <p className="text-red-600">{error}</p>}
+        {loadingCourt && (
+          <div className="space-y-4" aria-busy="true">
+            <div className="h-64 animate-pulse rounded-3xl bg-mist md:h-88" />
+            <div className="h-40 animate-pulse rounded-3xl bg-mist" />
+          </div>
+        )}
+
+        {error && !court && (
+          <p className="text-sm text-danger">{error}</p>
+        )}
 
         {court && (
           <>
             <Link
               href={`/venue/${court.venue.id}`}
-              className="text-sm text-green-700"
+              className="btn-ghost -ml-4"
             >
               ← Back to {court.venue.venueName}
             </Link>
 
-            <h1 className="mt-3 text-3xl font-bold">{court.courtName}</h1>
+            {/* Court photos */}
+            {court.images?.length > 0 && (
+              <div
+                className={`mt-4 grid gap-2 ${
+                  court.images.length === 1 ? "grid-cols-1" : "grid-cols-2 md:grid-cols-3"
+                }`}
+              >
+                {court.images.slice(0, 6).map((url: string, i: number) => (
+                  <a
+                    key={url}
+                    href={url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={`group overflow-hidden bg-forest ${
+                      i === 0
+                        ? `rounded-3xl ${court.images.length > 1 ? "col-span-2 row-span-2" : ""}`
+                        : "rounded-2xl"
+                    }`}
+                  >
+                    <img
+                      src={url}
+                      alt={`${court.courtName} photo ${i + 1}`}
+                      className={`h-full w-full object-cover transition duration-500 group-hover:scale-105 ${
+                        i === 0 ? "min-h-[16rem] md:min-h-[22rem]" : "h-32 md:h-44"
+                      }`}
+                    />
+                  </a>
+                ))}
+              </div>
+            )}
 
-            <p className="text-gray-500">
-              {court.venue.venueName} · {court.venue.address},{" "}
-              {court.venue.city}
-            </p>
+            {/* Court hero */}
+            <div className="card mt-4 p-6 sm:p-8">
+              <p className="eyebrow">Court</p>
 
-            {court.description && <p className="mt-3">{court.description}</p>}
+              <div className="mt-1 flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                  <h1 className="page-title">
+                    {court.courtName}
+                  </h1>
 
-            <div className="mt-4 grid grid-cols-2 gap-3 rounded-xl border p-4 text-sm sm:grid-cols-3">
-              <p>
-                <b>Sport:</b> {court.sport}
-              </p>
+                  <p className="mt-2 text-muted">
+                    {court.venue.venueName} ·{" "}
+                    {court.venue.address},{" "}
+                    {court.venue.city}
+                  </p>
 
-              <p>
-                <b>Type:</b> {court.courtType}
-              </p>
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    <span className="chip-active">{court.sport}</span>
+                    <span className="chip">{court.courtType}</span>
+                  </div>
+                </div>
 
-              <p>
-                <b>Max players:</b> {court.maxPlayers}
-              </p>
+                <div className="card-lime shrink-0 px-5 py-4 text-left sm:min-w-[11rem] sm:text-right">
+                  <p className="eyebrow text-ink/60">Per slot</p>
+                  <p className="mt-1 font-heading text-3xl font-black uppercase leading-[0.95] tracking-tight text-ink">
+                    Rs {court.pricePerSlotPKR.toLocaleString()}
+                  </p>
+                </div>
+              </div>
 
-              <p>
-                <b>Slot length:</b> {court.bookingDurationMinutes} min
-              </p>
+              {court.description && (
+                <p className="mt-5 text-ink">
+                  {court.description}
+                </p>
+              )}
 
-              <p>
-                <b>Price:</b> Rs {court.pricePerSlotPKR.toLocaleString()} / slot
-              </p>
+              <div className="mt-6 grid grid-cols-2 gap-4 border-t border-line pt-5 sm:grid-cols-3">
 
-              <p>
-                <b>Hours:</b> {court.openingTime} - {court.closingTime}
-              </p>
+                <div>
+                  <p className="eyebrow">Max players</p>
+                  <p className="mt-1 font-heading text-xl font-black text-ink">{court.maxPlayers}</p>
+                </div>
+
+                <div>
+                  <p className="eyebrow">Slot length</p>
+                  <p className="mt-1 font-heading text-xl font-black text-ink">
+                    {court.bookingDurationMinutes} min
+                  </p>
+                </div>
+
+                <div>
+                  <p className="eyebrow">Hours</p>
+                  <p className="mt-1 font-heading text-xl font-black text-ink">
+                    {court.openingTime} - {court.closingTime}
+                  </p>
+                </div>
+
+              </div>
             </div>
 
-            <h2 className="mt-6 text-lg font-semibold">Operating days</h2>
+            {/* ---------- Operating days ---------- */}
+
+            <p className="eyebrow mt-10">Schedule</p>
+            <h2 className="section-title mt-1">
+              Operating days
+            </h2>
 
             {operatingDays.length === 0 ? (
-              <p className="mt-2 text-gray-500">
+              <p className="mt-2 text-sm text-muted">
                 No operating days have been set for this court.
               </p>
             ) : (
-              <div className="mt-2 flex flex-wrap gap-2">
+              <div className="mt-3 flex flex-wrap gap-2">
+
                 {operatingDays.map((day) => (
                   <span
                     key={day}
-                    className="rounded-full border border-green-500 px-3 py-1 text-sm"
+                    className="chip"
                   >
                     {capitalize(day)}
                   </span>
@@ -412,37 +544,69 @@ setBookingType("SINGLE");
               </div>
             )}
 
-            <button
-              onClick={() => setPanelOpen(true)}
-              disabled={availableWeekdays.length === 0}
-              className="mt-8 rounded bg-green-600 px-5 py-2 text-white disabled:opacity-50"
-            >
-              Book this court
-            </button>
+            {/* ---------- Book this court ---------- */}
+
+            <div className="card-dark mt-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="eyebrow text-lime">Ready to play?</p>
+                <p className="mt-1 font-heading text-2xl font-black uppercase leading-[0.95] tracking-tight text-white">
+                  Pick a date and lock in your slot
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setError("");
+                  setPanelOpen(true);
+                }}
+                disabled={availableWeekdays.length === 0}
+                className="btn-accent shrink-0"
+              >
+                Book this court →
+              </button>
+            </div>
+
           </>
         )}
 
         {panelOpen && court && (
           <div
-            className="fixed inset-0 z-50 flex justify-end bg-black/40"
+            className="fixed inset-0 z-50 flex justify-end bg-ink/40 backdrop-blur-sm"
             onClick={() => setPanelOpen(false)}
           >
             <div
-              className="h-full w-full max-w-md overflow-y-auto bg-white p-6 shadow-xl"
+              className="h-full w-full max-w-md overflow-y-auto border-l border-line bg-cream p-6"
               onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Book a slot"
             >
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold">Book {court.courtName}</h2>
+
+              <div className="flex items-start justify-between gap-4">
+
+                <div>
+                  <p className="eyebrow">Book a slot</p>
+                  <h2 className="section-title mt-1">
+                    {court.courtName}
+                  </h2>
+                </div>
 
                 <button
+                  type="button"
                   onClick={() => setPanelOpen(false)}
-                  className="text-2xl leading-none"
+                  aria-label="Close"
+                  className="btn-ghost h-9 w-9 px-0 text-2xl leading-none"
                 >
                   ×
                 </button>
               </div>
 
-              <h3 className="mt-5 mb-2 font-semibold">1. Select a date</h3>
+              {/* ---------- Calendar ---------- */}
+
+              <h3 className="eyebrow mb-3 mt-8">
+                1. Select a date
+              </h3>
 
               <Calendar
                 selectedDate={date}
@@ -454,41 +618,65 @@ setBookingType("SINGLE");
                 }}
               />
 
-              <h3 className="mt-5 mb-2 font-semibold">
+              {/* ---------- Time slots ---------- */}
+
+              <h3 className="eyebrow mb-3 mt-8">
                 2. Select a time slot
               </h3>
 
               {!date && (
-                <p className="text-sm text-gray-500">
-                  Select a date to see the slots.
-                </p>
+                <div className="rounded-3xl border border-dashed border-line p-6 text-center">
+                  <p className="font-heading text-base font-black uppercase tracking-tight text-ink">
+                    Pick a date first
+                  </p>
+                  <p className="mt-1 text-sm text-muted">
+                    Available slots will show up here.
+                  </p>
+                </div>
               )}
 
               {date && loadingSlots && (
-                <p className="text-sm text-gray-500">Loading slots...</p>
+                <div className="grid grid-cols-2 gap-2" aria-busy="true">
+                  {[0, 1, 2, 3].map((i) => (
+                    <div key={i} className="h-11 animate-pulse rounded-2xl bg-mist" />
+                  ))}
+                </div>
               )}
 
               {date && !loadingSlots && slots.length === 0 && (
-                <p className="text-sm text-gray-500">
-                  No slots on this date.
-                </p>
+                <div className="rounded-3xl border border-dashed border-line p-6 text-center">
+                  <p className="font-heading text-base font-black uppercase tracking-tight text-ink">
+                    No slots on this date
+                  </p>
+                  <p className="mt-1 text-sm text-muted">
+                    Try another operating day.
+                  </p>
+                </div>
               )}
 
               <div className="grid grid-cols-2 gap-2">
                 {slots.map((slot) => (
                   <button
                     key={slot.id}
-                    disabled={slot.status === "BOOKED" || loadingSlots}
+                    type="button"
+                    disabled={
+                      slot.status !== "AVAILABLE" ||
+                      loadingSlots
+                    }
                     onClick={() => setSelected(slot)}
-                    className={`rounded border px-3 py-2 text-sm disabled:cursor-not-allowed ${
+                    aria-pressed={selected?.id === slot.id}
+                    className={`rounded-2xl border px-3 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed ${
                       slot.status === "BOOKED"
-                        ? "bg-gray-100 text-gray-400"
+                        ? "border-mist bg-mist text-muted line-through"
                         : selected?.id === slot.id
-                        ? "bg-green-600 text-white"
-                        : "border-green-500"
+                        ? "border-lime bg-lime text-ink"
+                        : "border-line bg-white text-ink hover:border-ink"
                     }`}
                   >
                     {slot.startTime} - {slot.endTime}
+                    {slot.status === "BOOKED" && (
+                      <span className="sr-only"> (Booked)</span>
+                    )}
                   </button>
                 ))}
               </div>
@@ -645,7 +833,7 @@ setBookingType("SINGLE");
                       selectedFriendIds.length === 0))
                 }
                 onClick={handleBook}
-                className="mt-5 w-full rounded bg-green-600 px-5 py-2 text-white disabled:opacity-50"
+                className="btn-primary mt-6 w-full"
               >
                 {submitting
                   ? "Processing..."

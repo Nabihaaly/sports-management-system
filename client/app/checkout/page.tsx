@@ -116,7 +116,11 @@ const CheckoutContent = () => {
         </p>
       </div>
 
-      {error && <p className="mt-4 text-red-600">{error}</p>}
+      {error && (
+        <p className="mt-4 rounded-2xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">
+          {error}
+        </p>
+      )}
 
       {booking.bookingType === "SPLIT" ? (
         hasPaid ? (
@@ -167,8 +171,8 @@ const CheckoutContent = () => {
 const Page = () => {
   return (
     <RequireRole role="PLAYER">
-      <div className="mx-auto max-w-xl p-6">
-        <Suspense fallback={<p>Loading...</p>}>
+      <div className="page-narrow max-w-xl">
+        <Suspense fallback={<p className="text-sm text-muted">Loading...</p>}>
           <CheckoutContent />
         </Suspense>
       </div>

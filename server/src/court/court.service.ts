@@ -3,13 +3,18 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { ApplicationStatus, WeekDay } from '@prisma/client';
+import { ApplicationStatus, BookingStatus, WeekDay } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateCourtDto } from './dto/create-dto';
+import { StorageService } from '../storage/storage.service';
+import { assertImage, imagePath, IMAGE_BUCKET } from '../storage/image.util';
+
+const MODEL_BUCKET = 'court-models';
 
 @Injectable()
 export class CourtService {
-  constructor(private prisma: PrismaService) {}
+
+  constructor(private prisma: PrismaService, private storage: StorageService) {}
 
   // The owner's approved venues, each with its courts and availability
   async findMyVenues(userId: string) {
@@ -198,4 +203,156 @@ export class CourtService {
       }
     }
   }
+  
+// Owner apne court ka 3D scan (.glb) upload karta hai
+async uploadModel(userId: string, courtId: string, file?: Express.Multer.File) {
+  if (!file) throw new BadRequestException('No file uploaded (field name: file)');
+
+  // Extension + magic bytes dono check — sirf naam pe bharosa nahi.
+  // Har valid .glb file "glTF" ascii se shuru hoti hai.
+  const isGlbName = file.originalname.toLowerCase().endsWith('.glb');
+  const isGlbMagic = file.buffer.subarray(0, 4).toString('ascii') === 'glTF';
+  if (!isGlbName || !isGlbMagic) {
+    throw new BadRequestException('Only .glb (binary glTF) files are allowed');
+  }
+
+  const court = await this.prisma.court.findFirst({
+    where: { id: courtId, venue: { venueOwner: { userId } } }, // ownership
+    select: { id: true, model3dUrl: true },
+  });
+  if (!court) throw new NotFoundException('Court not found');
+
+  // Path: courts/<courtId>/<timestamp>.glb — timestamp se browser cache bhi bust hota hai
+  const path = `courts/${court.id}/${Date.now()}.glb`;
+  const url = await this.storage.upload(MODEL_BUCKET, path, file.buffer, 'model/gltf-binary');
+
+  const updated = await this.prisma.court.update({
+    where: { id: court.id },
+    data: { model3dUrl: url },
+    select: { id: true, model3dUrl: true },
+  });
+
+  // Purani file saaf karo (storage quota bachao) — DB update ke BAAD, taake fail ho to bhi naya URL save ho
+  if (court.model3dUrl) {
+    const oldPath = this.storage.pathFromUrl(MODEL_BUCKET, court.model3dUrl);
+    if (oldPath) await this.storage.remove(MODEL_BUCKET, oldPath);
+  }
+
+  return updated;
+}
+
+// Scan hatao → court wapas default template pe
+async removeModel(userId: string, courtId: string) {
+  const court = await this.prisma.court.findFirst({
+    where: { id: courtId, venue: { venueOwner: { userId } } },
+    select: { id: true, model3dUrl: true },
+  });
+  if (!court) throw new NotFoundException('Court not found');
+  if (!court.model3dUrl) return { id: court.id, model3dUrl: null };
+
+  const updated = await this.prisma.court.update({
+    where: { id: court.id },
+    data: { model3dUrl: null },
+    select: { id: true, model3dUrl: true },
+  });
+
+  const oldPath = this.storage.pathFromUrl(MODEL_BUCKET, court.model3dUrl);
+  if (oldPath) await this.storage.remove(MODEL_BUCKET, oldPath);
+
+  return updated;
+}
+
+// Court photos upload → sirf URLs wapas (DB list PATCH setImages se save hoti hai)
+async uploadImages(userId: string, courtId: string, files?: Express.Multer.File[]) {
+  if (!files?.length) {
+    throw new BadRequestException('No files uploaded (field name: files)');
+  }
+  const court = await this.prisma.court.findFirst({
+    where: { id: courtId, venue: { venueOwner: { userId } } }, // ownership
+    select: { id: true },
+  });
+  if (!court) throw new NotFoundException('Court not found');
+
+  const urls: string[] = [];
+  for (const f of files) {
+    const { contentType, ext } = assertImage(f);
+    urls.push(
+      await this.storage.upload(
+        IMAGE_BUCKET,
+        imagePath(`courts/${court.id}/images`, ext),
+        f.buffer,
+        contentType,
+      ),
+    );
+  }
+  return { urls };
+}
+
+// Court ki image list replace. List se nikla hua URL humari bucket ka tha → file delete.
+async setImages(userId: string, courtId: string, images: string[]) {
+  const court = await this.prisma.court.findFirst({
+    where: { id: courtId, venue: { venueOwner: { userId } } },
+    select: { id: true, images: true },
+  });
+  if (!court) throw new NotFoundException('Court not found');
+
+  const updated = await this.prisma.court.update({
+    where: { id: court.id },
+    data: { images },
+    select: { id: true, images: true },
+  });
+
+  const removed = court.images.filter((u) => !images.includes(u));
+  for (const u of removed) {
+    const p = this.storage.pathFromUrl(IMAGE_BUCKET, u);
+    if (p) await this.storage.remove(IMAGE_BUCKET, p);
+  }
+  return updated;
+}
+
+// Owner ki bookings — sirf uske apne venues ke courts ki. Filters optional.
+async findBookings(
+  userId: string,
+  filters: { venueId?: string; date?: string; status?: BookingStatus },
+) {
+  if (filters.status && !Object.values(BookingStatus).includes(filters.status)) {
+    throw new BadRequestException('Invalid status');
+  }
+  if (filters.date && !/^\d{4}-\d{2}-\d{2}$/.test(filters.date)) {
+    throw new BadRequestException('date must be YYYY-MM-DD');
+  }
+
+  return this.prisma.booking.findMany({
+    where: {
+      court: {
+        venue: {
+          venueOwner: { userId }, // ownership
+          ...(filters.venueId ? { id: filters.venueId } : {}),
+        },
+      },
+      ...(filters.date ? { bookingDate: filters.date } : {}),
+      ...(filters.status ? { status: filters.status } : {}),
+    },
+    orderBy: [{ bookingDate: 'desc' }, { startTime: 'asc' }],
+    select: {
+      id: true,
+      bookingDate: true,
+      startTime: true,
+      endTime: true,
+      totalPricePKR: true,
+      status: true,
+      bookingType: true,
+      createdAt: true,
+      court: {
+        select: {
+          id: true,
+          courtName: true,
+          sport: true,
+          venue: { select: { id: true, venueName: true } },
+        },
+      },
+      user: { select: { id: true, name: true, email: true } },
+    },
+  });
+}
 }

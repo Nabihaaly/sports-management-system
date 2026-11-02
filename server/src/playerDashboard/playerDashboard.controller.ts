@@ -29,6 +29,13 @@ export class playerDashboardController {
     private readonly playerservice: playerDashboardService,
   ) {}
 
+    // GET /player/public-venues — landing page ke liye, login nahi chahiye
+  @Get('public-venues')
+  getPublicVenues() {
+    return this.playerservice.getVenues();
+  }
+
+  // GET /player/venues
   @Get('venues')
   getVenues() {
     return this.playerservice.getVenues();

@@ -49,6 +49,8 @@ export interface Court {
   closingTime: string;
   operatingDays: WeekDay[];
   isActive: boolean;
+  model3dUrl: string | null;
+  images: string[];
   availabilities: CourtAvailability[];
 }
 
@@ -63,6 +65,7 @@ export interface OwnerVenue {
   address: string;
   city: string;
   sizeOfVenue: string;
+  images: string[];
   courtsPriceRange: string;
   isActive: boolean;
   courts: Court[];
@@ -125,6 +128,86 @@ export async function createCourt(court: CourtInput) {
     credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(court),
+  });
+  return parse(response);
+}
+
+// .glb upload — multipart/form-data, field name "file" (backend FileInterceptor se match)
+export async function uploadCourtModel(courtId: string, file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  const response = await fetch(`${API_URL}/court/${courtId}/model`, {
+    method: "POST",
+    credentials: "include",
+    body: form, // Content-Type header MAT likho — browser boundary ke saath khud lagata hai
+  });
+  return parse(response) as Promise<{ id: string; model3dUrl: string }>;
+}
+
+export async function removeCourtModel(courtId: string) {
+  const response = await fetch(`${API_URL}/court/${courtId}/model`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  return parse(response) as Promise<{ id: string; model3dUrl: null }>;
+}
+// Court photos upload — field "files" (backend FilesInterceptor se match) → { urls }
+export async function uploadCourtImages(courtId: string, files: File[]) {
+  const form = new FormData();
+  files.forEach((f) => form.append("files", f));
+  const response = await fetch(`${API_URL}/court/${courtId}/images`, {
+    method: "POST",
+    credentials: "include",
+    body: form, // Content-Type mat likho
+  });
+  return parse(response) as Promise<{ urls: string[] }>;
+}
+
+// Final photo list save (add / remove)
+export async function setCourtImages(courtId: string, images: string[]) {
+  const response = await fetch(`${API_URL}/court/${courtId}/images`, {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ images }),
+  });
+  return parse(response) as Promise<{ id: string; images: string[] }>;
+}
+
+export type BookingStatus = "PENDING" | "CONFIRMED" | "CANCELLED";
+
+export interface OwnerBooking {
+  id: string;
+  bookingDate: string; // YYYY-MM-DD
+  startTime: string;   // HH:mm
+  endTime: string;
+  totalPricePKR: number;
+  status: BookingStatus;
+  bookingType: "SINGLE" | "SPLIT";
+  createdAt: string;
+  court: {
+    id: string;
+    courtName: string;
+    sport: string;
+    venue: { id: string; venueName: string };
+  };
+  user: { id: string; name: string | null; email: string };
+}
+
+// Owner ke venues ki bookings (read-only). Sab filters optional.
+export async function getOwnerBookings(filters: {
+  venueId?: string;
+  date?: string;
+  status?: BookingStatus;
+} = {}): Promise<OwnerBooking[]> {
+  const params = new URLSearchParams();
+  if (filters.venueId) params.set("venueId", filters.venueId);
+  if (filters.date) params.set("date", filters.date);
+  if (filters.status) params.set("status", filters.status);
+  const qs = params.toString();
+  const response = await fetch(`${API_URL}/court/bookings${qs ? `?${qs}` : ""}`, {
+    method: "GET",
+    credentials: "include",
   });
   return parse(response);
 }
