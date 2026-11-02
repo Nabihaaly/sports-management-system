@@ -11,6 +11,7 @@ import {
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import MatchPlayersButton from "@/Components/MatchPlayersButton";
 import Link from "next/link";
 
 const WEEKDAYS = [
@@ -77,6 +78,14 @@ const Calendar = ({
 
   const isCurrentMonth =
     year === today.getFullYear() && month === today.getMonth();
+
+  // Merge mein gum ho gayi lines (Nabiha ke version se wapas)
+  const currentYear = today.getFullYear();
+  const isFirstMonthOfYear =
+    year === currentYear && month === 0;
+  const isLastMonthOfYear =
+    year === currentYear && month === 11;
+  const years = [currentYear];
 
   const cells: (Date | null)[] = [
     ...Array.from({ length: blanks }, () => null),
@@ -188,7 +197,6 @@ const Calendar = ({
               type="button"
               disabled={!enabled}
               onClick={() => onSelect(iso)}
-              className={`rounded py-2 text-sm ${
               aria-pressed={isSelected}
               className={`aspect-square rounded-2xl text-sm font-semibold transition ${
                 isSelected
@@ -554,6 +562,12 @@ setBookingType("SINGLE");
                 </p>
               </div>
 
+              <div className="flex shrink-0 flex-wrap gap-3">
+                <MatchPlayersButton
+                  courtId={courtId}
+                  className="btn-ghost shrink-0 border border-white/40 text-white hover:bg-white/10"
+                />
+
               <button
                 type="button"
                 onClick={() => {
@@ -565,6 +579,7 @@ setBookingType("SINGLE");
               >
                 Book this court →
               </button>
+              </div>
             </div>
 
           </>

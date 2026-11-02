@@ -20,6 +20,7 @@ import { MatchwithPlayersController } from './matchwith-players/matchwith-player
 import { MatchwithPlayersModule } from './matchwith-players/matchwith-players.module';
 import { StorageService } from './storage/storage.service';
 import { StorageModule } from './storage/storage.module';
+import { PlayerMatchingModule } from './player-matching/player-matching.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { StorageModule } from './storage/storage.module';
     FriendModule,
     MatchwithPlayersModule,
     StorageModule,
+    PlayerMatchingModule,
   ],
   controllers: [AppController, AuthController, FriendController, MatchwithPlayersController],
   providers: [AppService, AuthapiService, FriendService],

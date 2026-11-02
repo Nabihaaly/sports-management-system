@@ -4,6 +4,7 @@
 import RequireRole from "@/Components/RequireRole";
 import PlayersNotifications from "@/Components/PlayersNotifications";
 import RequestToPlay from "@/Components/RequestToPlay";
+import MatchPlayersButton from "@/Components/MatchPlayersButton";
 
 import {
   getVenues,
@@ -112,6 +113,8 @@ const Page = () => {
           <div className="flex items-center gap-3">
 
             <RequestToPlay />
+
+            <MatchPlayersButton />
 
             {/* Slots Held */}
             <div className="relative">
