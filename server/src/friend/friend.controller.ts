@@ -64,4 +64,13 @@ export class FriendController {
 
     return this.friendService.declineFriendRequest(userId, id);
   }
+
+  
+@Get('accepted')
+getAcceptedFriends(@Req() request: any) {
+  const userId = request.user.id;
+
+  return this.friendService.getAcceptedFriends(userId);
+}
+
 }

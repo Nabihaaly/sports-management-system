@@ -145,5 +145,69 @@ async declineFriendRequest(userId: string, requestId: string) {
     message: 'Friend request declined successfully.',
   };
 }
+
+
+async getAcceptedFriends(userId: string) {
+  const friendships = await this.prisma.friend.findMany({
+    where: {
+      status: 'ACCEPTED',
+      OR: [
+        { senderId: userId },
+        { receiverId: userId },
+      ],
+    },
+    select: {
+      id: true,
+      senderId: true,
+      receiverId: true,
+      sender: {
+        select: {
+          id: true,
+          name: true,
+          playerProfile: {
+            select: {
+              displayName: true,
+              profilePicture: true,
+              city: true,
+            },
+          },
+        },
+      },
+      receiver: {
+        select: {
+          id: true,
+          name: true,
+          playerProfile: {
+            select: {
+              displayName: true,
+              profilePicture: true,
+              city: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  return {
+    friends: friendships.map((friendship) => {
+      const friend =
+        friendship.senderId === userId
+          ? friendship.receiver
+          : friendship.sender;
+
+      return {
+        userId: friend.id,
+        name: friend.name,
+        displayName:
+          friend.playerProfile?.displayName || friend.name,
+        profilePicture:
+          friend.playerProfile?.profilePicture || null,
+        city: friend.playerProfile?.city || null,
+      };
+    }),
+  };
+}
+
 }
 

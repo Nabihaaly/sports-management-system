@@ -18,7 +18,7 @@ const page = () => {
   return (
     <RequireRole role="PLAYER">
       <div className="mx-auto max-w-4xl p-6">
-        <Link href="/player/dashboard" className="text-sm text-green-700">← Back to venues</Link>
+        <Link href="/dashboard" className="text-sm text-green-700">← Back to venues</Link>
 
         {error && <p className="mt-4 text-red-600">{error}</p>}
         {!venue && !error && <p className="mt-4">Loading...</p>}

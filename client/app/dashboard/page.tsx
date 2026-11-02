@@ -2,18 +2,18 @@
 "use client";
 
 import RequireRole from "@/Components/RequireRole";
+import PlayersNotifications from "@/Components/PlayersNotifications";
+
 import {
   getVenues,
   getHeldBookings,
 } from "../../services/playerDashboard";
+
 import {
   searchPlayers,
   PlayerSearchResult,
-  getReceivedFriendRequests,
-  acceptFriendRequest,
-  declineFriendRequest,
-  ReceivedFriendRequest,
 } from "../../services/playerProfile";
+
 import { useEffect, useState } from "react";
 import Link from "next/link";
 
@@ -28,15 +28,6 @@ const Page = () => {
   const [searching, setSearching] = useState(false);
   const [searchError, setSearchError] = useState("");
   const [hasSearched, setHasSearched] = useState(false);
-
-  // Friend request states
-  const [requestsOpen, setRequestsOpen] = useState(false);
-  const [friendRequests, setFriendRequests] = useState<
-    ReceivedFriendRequest[]
-  >([]);
-  const [requestsLoading, setRequestsLoading] = useState(false);
-  const [requestsError, setRequestsError] = useState("");
-  const [actionRequestId, setActionRequestId] = useState("");
 
   // Held booking states
   const [heldBookings, setHeldBookings] = useState<any[]>([]);
@@ -84,75 +75,6 @@ const Page = () => {
     }
   };
 
-  // Toggle friend requests dropdown
-  const handleToggleRequests = async () => {
-    const shouldOpen = !requestsOpen;
-
-    setRequestsOpen(shouldOpen);
-
-    if (!shouldOpen) return;
-
-    setRequestsLoading(true);
-    setRequestsError("");
-
-    try {
-      const result = await getReceivedFriendRequests();
-      setFriendRequests(result.requests);
-    } catch (e) {
-      setRequestsError(
-        e instanceof Error
-          ? e.message
-          : "Failed to load friend requests"
-      );
-    } finally {
-      setRequestsLoading(false);
-    }
-  };
-
-  // Accept friend request
-  const handleAcceptRequest = async (requestId: string) => {
-    try {
-      setActionRequestId(requestId);
-      setRequestsError("");
-
-      await acceptFriendRequest(requestId);
-
-      setFriendRequests((previous) =>
-        previous.filter((request) => request.id !== requestId)
-      );
-    } catch (e) {
-      setRequestsError(
-        e instanceof Error
-          ? e.message
-          : "Failed to accept request"
-      );
-    } finally {
-      setActionRequestId("");
-    }
-  };
-
-  // Decline friend request
-  const handleDeclineRequest = async (requestId: string) => {
-    try {
-      setActionRequestId(requestId);
-      setRequestsError("");
-
-      await declineFriendRequest(requestId);
-
-      setFriendRequests((previous) =>
-        previous.filter((request) => request.id !== requestId)
-      );
-    } catch (e) {
-      setRequestsError(
-        e instanceof Error
-          ? e.message
-          : "Failed to decline request"
-      );
-    } finally {
-      setActionRequestId("");
-    }
-  };
-
   // Toggle held slots dropdown
   const handleToggleHeld = async () => {
     const shouldOpen = !heldOpen;
@@ -182,7 +104,7 @@ const Page = () => {
     <RequireRole role="PLAYER">
       <div className="mx-auto max-w-5xl p-6">
 
-        {/* Page heading, Slots Held, Friend Requests and Profile */}
+        {/* Page heading, Slots Held, Notifications and Profile */}
         <div className="mb-6 flex items-center justify-between">
           <h1 className="text-2xl font-bold">Venues</h1>
 
@@ -293,12 +215,23 @@ const Page = () => {
                             {booking.address}
                           </p>
 
-                          <Link
-                            href={`/checkout?bookingId=${booking.id}`}
-                            className="mt-3 block rounded-lg bg-green-600 px-3 py-2 text-center text-sm font-medium text-white transition hover:bg-green-700"
-                          >
-                            Checkout
-                          </Link>
+                       {booking.bookingType === "SPLIT" &&
+booking.splitStatus !== "READY_FOR_PAYMENT" ? (
+  <button
+    type="button"
+    disabled
+    className="mt-3 block w-full cursor-not-allowed rounded-lg bg-gray-300 px-3 py-2 text-center text-sm font-medium text-gray-500"
+  >
+    Waiting for friends to accept
+  </button>
+) : (
+  <Link
+    href={`/checkout?bookingId=${booking.id}`}
+    className="mt-3 block rounded-lg bg-green-600 px-3 py-2 text-center text-sm font-medium text-white transition hover:bg-green-700"
+  >
+    Checkout
+  </Link>
+)}
                         </div>
                       ))}
 
@@ -315,137 +248,8 @@ const Page = () => {
               )}
             </div>
 
-            {/* Friend Requests */}
-            <div className="relative">
-
-              <button
-                type="button"
-                onClick={handleToggleRequests}
-                title="Friend Requests"
-                aria-label="Open friend requests"
-                aria-expanded={requestsOpen}
-                className="relative flex h-11 w-11 items-center justify-center rounded-full border border-gray-300 transition hover:bg-gray-100"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="25"
-                  height="25"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1.1-1.1a5.5 5.5 0 0 0-7.8 7.8l1.1 1.1L12 21l7.8-7.5 1.1-1.1a5.5 5.5 0 0 0-.1-7.8Z" />
-                </svg>
-
-                {friendRequests.length > 0 && (
-                  <span className="absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full bg-red-600 px-1 text-xs text-white">
-                    {friendRequests.length}
-                  </span>
-                )}
-              </button>
-
-              {/* Friend Requests Dropdown */}
-              {requestsOpen && (
-                <div className="absolute right-0 z-50 mt-2 w-80 rounded-xl border bg-white p-4 shadow-lg">
-
-                  <h2 className="mb-3 text-lg font-semibold">
-                    Friend Requests
-                  </h2>
-
-                  {requestsLoading && (
-                    <p className="text-sm text-gray-500">
-                      Loading requests...
-                    </p>
-                  )}
-
-                  {requestsError && (
-                    <p className="mb-3 text-sm text-red-600">
-                      {requestsError}
-                    </p>
-                  )}
-
-                  {!requestsLoading &&
-                    friendRequests.length === 0 &&
-                    !requestsError && (
-                      <p className="text-sm text-gray-500">
-                        No pending friend requests.
-                      </p>
-                    )}
-
-                  <div className="max-h-80 space-y-3 overflow-y-auto">
-                    {friendRequests.map((request) => (
-                      <div
-                        key={request.id}
-                        className="rounded-lg border p-3"
-                      >
-                        <div className="mb-3 flex items-center gap-3">
-
-                          {request.sender.playerProfile?.profilePicture ? (
-                            <img
-                              src={
-                                request.sender.playerProfile.profilePicture
-                              }
-                              alt="Player"
-                              className="h-10 w-10 rounded-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-200 font-semibold">
-                              {(
-                                request.sender.playerProfile?.displayName ||
-                                request.sender.name
-                              )
-                                .charAt(0)
-                                .toUpperCase()}
-                            </div>
-                          )}
-
-                          <div>
-                            <p className="font-medium">
-                              {request.sender.playerProfile?.displayName ||
-                                request.sender.name}
-                            </p>
-
-                            <p className="text-xs text-gray-500">
-                              {request.sender.playerProfile?.city ||
-                                "City not added"}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleAcceptRequest(request.id)
-                            }
-                            disabled={actionRequestId === request.id}
-                            className="flex-1 rounded-lg bg-green-600 px-3 py-2 text-sm text-white hover:bg-green-700 disabled:opacity-50"
-                          >
-                            {actionRequestId === request.id
-                              ? "Please wait..."
-                              : "Accept"}
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleDeclineRequest(request.id)
-                            }
-                            disabled={actionRequestId === request.id}
-                            className="flex-1 rounded-lg bg-red-600 px-3 py-2 text-sm text-white hover:bg-red-700 disabled:opacity-50"
-                          >
-                            Decline
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+            {/* Friend Requests Heart Icon */}
+            <PlayersNotifications />
 
             {/* Existing Profile Icon */}
             <Link

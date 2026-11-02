@@ -1,3 +1,4 @@
+
 import {
   Body,
   Controller,
@@ -7,45 +8,43 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { AuthGuard, Session } from '@thallesp/nestjs-better-auth';
+
+import {
+  AuthGuard,
+  Session,
+} from '@thallesp/nestjs-better-auth';
+
 import type { UserSession } from '@thallesp/nestjs-better-auth';
+
 import { Role } from '@prisma/client';
 import { Roles } from 'src/common/decorators/role.decorators';
 import { RolesGuard } from 'src/common/guards/role.guards';
 import { playerDashboardService } from './playerDashboard.service';
 
 @Controller('player')
+@UseGuards(AuthGuard, RolesGuard)
+@Roles(Role.PLAYER)
 export class playerDashboardController {
-  constructor(private readonly playerservice: playerDashboardService) {}
+  constructor(
+    private readonly playerservice: playerDashboardService,
+  ) {}
 
-  // GET /player/venues
   @Get('venues')
-  @UseGuards(AuthGuard, RolesGuard)
-  @Roles(Role.PLAYER)
   getVenues() {
     return this.playerservice.getVenues();
   }
 
-  // GET /player/venues/:venueId
   @Get('venues/:venueId')
-  @UseGuards(AuthGuard, RolesGuard)
-  @Roles(Role.PLAYER)
   getVenue(@Param('venueId') venueId: string) {
     return this.playerservice.getVenue(venueId);
   }
 
-  // GET /player/courts/:courtId   (NEW: full details of one court)
   @Get('courts/:courtId')
-  @UseGuards(AuthGuard, RolesGuard)
-  @Roles(Role.PLAYER)
   getCourt(@Param('courtId') courtId: string) {
     return this.playerservice.getCourt(courtId);
   }
 
-  // GET /player/courts/:courtId/slots?date=2026-11-02
   @Get('courts/:courtId/slots')
-  @UseGuards(AuthGuard, RolesGuard)
-  @Roles(Role.PLAYER)
   getSlots(
     @Param('courtId') courtId: string,
     @Query('date') date: string,
@@ -53,52 +52,116 @@ export class playerDashboardController {
     return this.playerservice.getSlots(courtId, date);
   }
 
-  // POST /player/bookings
+  // Existing single booking.
   @Post('bookings')
-  @UseGuards(AuthGuard, RolesGuard)
-  @Roles(Role.PLAYER)
   createBooking(
     @Session() session: UserSession,
-    @Body() body: { courtId: string; date: string; startTime: string },
+    @Body()
+    body: {
+      courtId: string;
+      date: string;
+      startTime: string;
+    },
   ) {
-    return this.playerservice.createBooking(session.user.id, body);
+    return this.playerservice.createBooking(
+      session.user.id,
+      body,
+    );
   }
 
-    // GET /player/bookings/held
-@Get('bookings/held')
-@UseGuards(AuthGuard, RolesGuard)
-@Roles(Role.PLAYER)
-getHeldBookings(@Session() session: UserSession) {
-  return this.playerservice.getHeldBookings(session.user.id);
-}
+  // New split booking.
+  @Post('bookings/split')
+  createSplitBooking(
+    @Session() session: UserSession,
+    @Body()
+    body: {
+      courtId: string;
+      date: string;
+      startTime: string;
+      invitedUserIds: string[];
+    },
+  ) {
+    return this.playerservice.createSplitBooking(
+      session.user.id,
+      body,
+    );
+  }
 
-  // GET /player/bookings/:id
+  // Invitations received by the logged-in player.
+  @Get('bookings/invitations')
+  getSplitInvitations(
+    @Session() session: UserSession,
+  ) {
+    return this.playerservice.getSplitInvitations(
+      session.user.id,
+    );
+  }
+
+  // Accept invitation.
+  @Post('bookings/:id/accept-invitation')
+  acceptSplitInvitation(
+    @Session() session: UserSession,
+    @Param('id') id: string,
+  ) {
+    return this.playerservice.acceptSplitInvitation(
+      session.user.id,
+      id,
+    );
+  }
+
+  // Decline invitation.
+  @Post('bookings/:id/decline-invitation')
+  declineSplitInvitation(
+    @Session() session: UserSession,
+    @Param('id') id: string,
+  ) {
+    return this.playerservice.declineSplitInvitation(
+      session.user.id,
+      id,
+    );
+  }
+
+  // Confirm an individual participant's payment.
+  @Post('bookings/:id/pay')
+  confirmSplitPayment(
+    @Session() session: UserSession,
+    @Param('id') id: string,
+  ) {
+    return this.playerservice.confirmSplitPayment(
+      session.user.id,
+      id,
+    );
+  }
+
+  // Keep this before GET bookings/:id.
+  @Get('bookings/held')
+  getHeldBookings(
+    @Session() session: UserSession,
+  ) {
+    return this.playerservice.getHeldBookings(
+      session.user.id,
+    );
+  }
+
   @Get('bookings/:id')
-  @UseGuards(AuthGuard, RolesGuard)
-  @Roles(Role.PLAYER)
   getBooking(
     @Session() session: UserSession,
     @Param('id') id: string,
   ) {
-    return this.playerservice.getBooking(session.user.id, id);
+    return this.playerservice.getBooking(
+      session.user.id,
+      id,
+    );
   }
 
-
-
-  // POST /player/bookings/:id/confirm
   @Post('bookings/:id/confirm')
-  @UseGuards(AuthGuard, RolesGuard)
-  @Roles(Role.PLAYER)
   confirmBooking(
     @Session() session: UserSession,
     @Param('id') id: string,
   ) {
     return this.playerservice.confirmBooking(
       session.user.id,
-      id
+      id,
     );
   }
-
-
-  
 }

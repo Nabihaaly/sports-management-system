@@ -1,4 +1,3 @@
-
 import {
   BadRequestException,
   ConflictException,
@@ -23,6 +22,9 @@ const DAYS: WeekDay[] = [
 const HOLD_MINUTES = 10;
 const TIME_ZONE = 'Asia/Karachi';
 
+const SPLIT_INVITATION_MINUTES = 30;
+const SPLIT_PAYMENT_MINUTES = 20;
+
 @Injectable()
 export class playerDashboardService {
   constructor(private prisma: PrismaService) {}
@@ -38,28 +40,19 @@ export class playerDashboardService {
   // ---------- Common date validation ----------
 
   private validateBookingDate(date: string) {
-    // Validate YYYY-MM-DD format.
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) {
-      throw new BadRequestException(
-        'date must be YYYY-MM-DD',
-      );
+      throw new BadRequestException('date must be YYYY-MM-DD');
     }
 
-    // Reject invalid calendar dates such as 2026-02-31.
-    const selectedDate = new Date(
-      `${date}T00:00:00.000Z`,
-    );
+    const selectedDate = new Date(`${date}T00:00:00.000Z`);
 
     if (
       Number.isNaN(selectedDate.getTime()) ||
       selectedDate.toISOString().slice(0, 10) !== date
     ) {
-      throw new BadRequestException(
-        'Invalid calendar date',
-      );
+      throw new BadRequestException('Invalid calendar date');
     }
 
-    // Get today's date according to Pakistan time.
     const dateParts = new Intl.DateTimeFormat('en-GB', {
       timeZone: TIME_ZONE,
       year: 'numeric',
@@ -81,21 +74,58 @@ export class playerDashboardService {
 
     const todayInPakistan = `${year}-${month}-${day}`;
 
-    // Only allow bookings in the current Pakistan calendar year.
     if (date.substring(0, 4) !== year) {
       throw new BadRequestException(
         `Bookings are only allowed in the current year (${year})`,
       );
     }
 
-    // Reject past dates. Today is allowed.
     if (date < todayInPakistan) {
-      throw new BadRequestException(
-        'Past dates cannot be booked',
-      );
+      throw new BadRequestException('Past dates cannot be booked');
     }
 
     return selectedDate;
+  }
+
+  // ---------- Common booking conflict condition ----------
+
+  private getActiveBookingCondition(now: Date) {
+    const singleHoldCutoff = new Date(
+      now.getTime() - HOLD_MINUTES * 60 * 1000,
+    );
+
+    return {
+      OR: [
+        {
+          status: 'CONFIRMED' as const,
+        },
+        {
+          status: 'PENDING' as const,
+          OR: [
+            {
+              bookingType: 'SINGLE' as const,
+              createdAt: {
+                gt: singleHoldCutoff,
+              },
+            },
+            {
+              bookingType: 'SPLIT' as const,
+              splitStatus: 'INVITING' as const,
+              invitationExpiresAt: {
+                gt: now,
+              },
+            },
+            {
+              bookingType: 'SPLIT' as const,
+              splitStatus: 'READY_FOR_PAYMENT' as const,
+              paymentExpiresAt: {
+                gt: now,
+              },
+            },
+          ],
+        },
+      ],
+    };
   }
 
   // ---------- 1. All venues ----------
@@ -124,9 +154,7 @@ export class playerDashboardService {
     return venues.map(({ courts, ...venue }) => ({
       ...venue,
       courtCount: courts.length,
-      sports: [
-        ...new Set(courts.map((court) => court.sport)),
-      ],
+      sports: [...new Set(courts.map((court) => court.sport))],
     }));
   }
 
@@ -207,7 +235,6 @@ export class playerDashboardService {
   // ---------- 3. Exact availability rows for a selected date ----------
 
   async getSlots(courtId: string, date: string) {
-    // Validate date, year and past-date restrictions.
     const selectedDate = this.validateBookingDate(date);
 
     const court = await this.prisma.court.findFirst({
@@ -220,13 +247,15 @@ export class playerDashboardService {
         },
       },
       include: {
-        venue: true,
+        venue: {
+          select: {
+            id: true,
+            venueName: true,
+          },
+        },
         availabilities: {
           where: {
             isActive: true,
-          },
-          orderBy: {
-            startTime: 'asc',
           },
         },
       },
@@ -236,36 +265,20 @@ export class playerDashboardService {
       throw new NotFoundException('Court not found');
     }
 
-    // Get weekday of the selected date.
-    // UTC is used because the input is a date-only string.
     const day: WeekDay = DAYS[selectedDate.getUTCDay()];
 
-    // Each active database availability row is one exact slot.
     const availabilityRows = court.availabilities.filter(
       (availability) => availability.dayOfWeek === day,
     );
 
-    // Find confirmed bookings and pending bookings
-    // whose 10-minute hold has not expired.
-    const holdCutoff = new Date(
-      Date.now() - HOLD_MINUTES * 60 * 1000,
-    );
+    const now = new Date();
 
+    // Find all bookings that currently block this court's slots.
     const bookings = await this.prisma.booking.findMany({
       where: {
         courtId,
         bookingDate: date,
-        OR: [
-          {
-            status: 'CONFIRMED',
-          },
-          {
-            status: 'PENDING',
-            createdAt: {
-              gt: holdCutoff,
-            },
-          },
-        ],
+        ...this.getActiveBookingCondition(now),
       },
       select: {
         startTime: true,
@@ -273,15 +286,12 @@ export class playerDashboardService {
       },
     });
 
-    // Compare both startTime and endTime.
     const bookedSlots = new Set(
       bookings.map(
-        (booking) =>
-          `${booking.startTime}|${booking.endTime}`,
+        (booking) => `${booking.startTime}|${booking.endTime}`,
       ),
     );
 
-    // Return each exact database availability row.
     const slots = availabilityRows.map((availability) => ({
       id: availability.id,
       startTime: availability.startTime,
@@ -306,7 +316,7 @@ export class playerDashboardService {
     };
   }
 
-  // ---------- 4. Player selects a slot -> create booking ----------
+  // ---------- 4. Create an ordinary single booking ----------
 
   async createBooking(
     userId: string,
@@ -318,13 +328,9 @@ export class playerDashboardService {
   ) {
     const { courtId, date, startTime } = body;
 
-    // Validate date before doing anything else.
     const selectedDate = this.validateBookingDate(date);
-
     const day: WeekDay = DAYS[selectedDate.getUTCDay()];
 
-    // Use a serializable transaction to reduce the risk of
-    // two players booking the same slot simultaneously.
     try {
       return await this.prisma.$transaction(
         async (tx) => {
@@ -343,7 +349,6 @@ export class playerDashboardService {
             throw new NotFoundException('Court not found');
           }
 
-          // Find the exact active availability row.
           const slot = await tx.courtAvailability.findFirst({
             where: {
               courtId,
@@ -359,12 +364,8 @@ export class playerDashboardService {
             );
           }
 
-          const holdCutoff = new Date(
-            Date.now() - HOLD_MINUTES * 60 * 1000,
-          );
+          const now = new Date();
 
-          // Check whether this exact slot is already booked
-          // or currently held by another player.
           const existingBooking =
             await tx.booking.findFirst({
               where: {
@@ -372,17 +373,7 @@ export class playerDashboardService {
                 bookingDate: date,
                 startTime: slot.startTime,
                 endTime: slot.endTime,
-                OR: [
-                  {
-                    status: 'CONFIRMED',
-                  },
-                  {
-                    status: 'PENDING',
-                    createdAt: {
-                      gt: holdCutoff,
-                    },
-                  },
-                ],
+                ...this.getActiveBookingCondition(now),
               },
             });
 
@@ -392,8 +383,6 @@ export class playerDashboardService {
             );
           }
 
-          // Create a temporary PENDING booking.
-          // The 10-minute hold starts from createdAt.
           return tx.booking.create({
             data: {
               userId,
@@ -403,6 +392,7 @@ export class playerDashboardService {
               endTime: slot.endTime,
               totalPricePKR: court.pricePerSlotPKR,
               status: 'PENDING',
+              bookingType: 'SINGLE',
             },
           });
         },
@@ -411,8 +401,6 @@ export class playerDashboardService {
         },
       );
     } catch (error: unknown) {
-      // PostgreSQL serializable transactions can reject
-      // conflicting simultaneous transactions.
       if (
         typeof error === 'object' &&
         error !== null &&
@@ -439,6 +427,19 @@ export class playerDashboardService {
             venue: true,
           },
         },
+        participants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: 'asc',
+          },
+        },
       },
     });
 
@@ -446,9 +447,29 @@ export class playerDashboardService {
       throw new NotFoundException('Booking not found');
     }
 
-    if (booking.userId !== userId) {
-      throw new ForbiddenException();
+    const isCreator = booking.userId === userId;
+
+    const currentParticipant = booking.participants.find(
+      (participant) => participant.userId === userId,
+    );
+
+    if (!isCreator && !currentParticipant) {
+      throw new ForbiddenException(
+        'You are not a participant in this booking.',
+      );
     }
+
+    const now = new Date();
+
+    const holdExpiresAt =
+      booking.bookingType === 'SINGLE'
+        ? new Date(
+            booking.createdAt.getTime() +
+              HOLD_MINUTES * 60 * 1000,
+          )
+        : booking.splitStatus === 'INVITING'
+          ? booking.invitationExpiresAt
+          : booking.paymentExpiresAt;
 
     return {
       id: booking.id,
@@ -457,20 +478,50 @@ export class playerDashboardService {
       startTime: booking.startTime,
       endTime: booking.endTime,
       totalPricePKR: booking.totalPricePKR,
+
+      bookingType: booking.bookingType,
+      splitStatus: booking.splitStatus,
+      invitationExpiresAt: booking.invitationExpiresAt,
+      paymentExpiresAt: booking.paymentExpiresAt,
+      holdExpiresAt,
+
+      isCreator,
+      currentParticipant: currentParticipant
+        ? {
+            userId: currentParticipant.userId,
+            amountPKR: currentParticipant.amountPKR,
+            invitationStatus: currentParticipant.invitationStatus,
+            paymentStatus: currentParticipant.paymentStatus,
+            paidAt: currentParticipant.paidAt,
+          }
+        : null,
+
+      participants: booking.participants.map((participant) => ({
+        userId: participant.userId,
+        name: participant.user.name,
+        isCreator: participant.isCreator,
+        amountPKR: participant.amountPKR,
+        invitationStatus: participant.invitationStatus,
+        paymentStatus: participant.paymentStatus,
+        paidAt: participant.paidAt,
+      })),
+
       courtName: booking.court.courtName,
       sport: booking.court.sport,
       venueName: booking.court.venue.venueName,
       venueId: booking.court.venue.id,
       address: `${booking.court.venue.address}, ${booking.court.venue.city}`,
+
+      isHoldExpired:
+        booking.status === 'PENDING' &&
+        holdExpiresAt !== null &&
+        holdExpiresAt <= now,
     };
   }
 
-  // ---------- 6. Confirm booking on checkout ----------
+  // ---------- 6. Confirm an ordinary single booking ----------
 
-  async confirmBooking(
-    userId: string,
-    bookingId: string,
-  ) {
+  async confirmBooking(userId: string, bookingId: string) {
     const booking = await this.prisma.booking.findUnique({
       where: { id: bookingId },
     });
@@ -483,17 +534,20 @@ export class playerDashboardService {
       throw new ForbiddenException();
     }
 
+    if (booking.bookingType === 'SPLIT') {
+      throw new BadRequestException(
+        'Split bookings must be completed through the split payment process.',
+      );
+    }
+
     if (booking.status === 'CONFIRMED') {
       return this.getBooking(userId, bookingId);
     }
 
     if (booking.status === 'CANCELLED') {
-      throw new BadRequestException(
-        'Booking was cancelled',
-      );
+      throw new BadRequestException('Booking was cancelled');
     }
 
-    // Check that the 10-minute hold has not expired.
     const age = Date.now() - booking.createdAt.getTime();
 
     if (age >= HOLD_MINUTES * 60 * 1000) {
@@ -502,69 +556,787 @@ export class playerDashboardService {
       );
     }
 
-    // Confirm the booking without a payment method.
-    await this.prisma.booking.update({
-      where: { id: bookingId },
+    const updated = await this.prisma.booking.updateMany({
+      where: {
+        id: bookingId,
+        userId,
+        status: 'PENDING',
+        bookingType: 'SINGLE',
+        createdAt: {
+          gt: new Date(Date.now() - HOLD_MINUTES * 60 * 1000),
+        },
+      },
       data: {
         status: 'CONFIRMED',
       },
     });
 
+    if (updated.count === 0) {
+      throw new BadRequestException(
+        'Your booking hold has expired or is no longer active.',
+      );
+    }
+
     return this.getBooking(userId, bookingId);
   }
 
-  // ---------- Get all active holds of the logged-in player ----------
+  // ---------- 7. Get all active holds for the logged-in player ----------
 
-async getHeldBookings(userId: string) {
-  const holdCutoff = new Date(
-    Date.now() - HOLD_MINUTES * 60 * 1000,
-  );
+  async getHeldBookings(userId: string) {
+    const now = new Date();
 
-  const bookings = await this.prisma.booking.findMany({
-    where: {
-      userId,
-      status: 'PENDING',
-      createdAt: {
-        gt: holdCutoff,
+    const singleHoldCutoff = new Date(
+      now.getTime() - HOLD_MINUTES * 60 * 1000,
+    );
+
+    const bookings = await this.prisma.booking.findMany({
+      where: {
+        status: 'PENDING',
+        OR: [
+          {
+            userId,
+          },
+          {
+            participants: {
+              some: {
+                userId,
+              },
+            },
+          },
+        ],
+        AND: [
+          {
+            OR: [
+              {
+                bookingType: 'SINGLE',
+                createdAt: {
+                  gt: singleHoldCutoff,
+                },
+              },
+              {
+                bookingType: 'SPLIT',
+                splitStatus: 'INVITING',
+                invitationExpiresAt: {
+                  gt: now,
+                },
+              },
+              {
+                bookingType: 'SPLIT',
+                splitStatus: 'READY_FOR_PAYMENT',
+                paymentExpiresAt: {
+                  gt: now,
+                },
+              },
+            ],
+          },
+        ],
       },
-    },
-    include: {
-      court: {
-        include: {
-          venue: {
-            select: {
-              id: true,
-              venueName: true,
-              address: true,
-              city: true,
+      include: {
+        court: {
+          include: {
+            venue: {
+              select: {
+                id: true,
+                venueName: true,
+                address: true,
+                city: true,
+              },
             },
           },
         },
+        participants: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: 'asc',
+          },
+        },
       },
-    },
-    orderBy: {
-      createdAt: 'desc',
-    },
-  });
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
 
-  return {
-    bookings: bookings.map((booking) => ({
-      id: booking.id,
-      bookingDate: booking.bookingDate,
-      startTime: booking.startTime,
-      endTime: booking.endTime,
-      totalPricePKR: booking.totalPricePKR,
-      createdAt: booking.createdAt,
-      holdExpiresAt: new Date(
-        booking.createdAt.getTime() +
-          HOLD_MINUTES * 60 * 1000,
+    return {
+      bookings: bookings.map((booking) => {
+        const ownParticipant = booking.participants.find(
+          (participant) => participant.userId === userId,
+        );
+
+        const holdExpiresAt =
+          booking.bookingType === 'SINGLE'
+            ? new Date(
+                booking.createdAt.getTime() +
+                  HOLD_MINUTES * 60 * 1000,
+              )
+            : booking.splitStatus === 'INVITING'
+              ? booking.invitationExpiresAt
+              : booking.paymentExpiresAt;
+
+        return {
+          id: booking.id,
+          bookingDate: booking.bookingDate,
+          startTime: booking.startTime,
+          endTime: booking.endTime,
+          totalPricePKR: booking.totalPricePKR,
+          createdAt: booking.createdAt,
+
+          bookingType: booking.bookingType,
+          splitStatus: booking.splitStatus,
+          invitationExpiresAt: booking.invitationExpiresAt,
+          paymentExpiresAt: booking.paymentExpiresAt,
+          holdExpiresAt,
+
+          isCreator: booking.userId === userId,
+          currentParticipant: ownParticipant
+            ? {
+                amountPKR: ownParticipant.amountPKR,
+                invitationStatus: ownParticipant.invitationStatus,
+                paymentStatus: ownParticipant.paymentStatus,
+              }
+            : null,
+
+          participants: booking.participants.map((participant) => ({
+            userId: participant.userId,
+            name: participant.user.name,
+            isCreator: participant.isCreator,
+            amountPKR: participant.amountPKR,
+            invitationStatus: participant.invitationStatus,
+            paymentStatus: participant.paymentStatus,
+          })),
+
+          courtName: booking.court.courtName,
+          sport: booking.court.sport,
+          venueName: booking.court.venue.venueName,
+          venueId: booking.court.venue.id,
+          address: `${booking.court.venue.address}, ${booking.court.venue.city}`,
+        };
+      }),
+    };
+  }
+
+  // ---------- 8. Create split booking and send invitations ----------
+
+  async createSplitBooking(
+    userId: string,
+    body: {
+      courtId: string;
+      date: string;
+      startTime: string;
+      invitedUserIds: string[];
+    },
+  ) {
+    const { courtId, date, startTime } = body;
+
+    const invitedUserIds = [
+      ...new Set(body.invitedUserIds || []),
+    ];
+
+    if (invitedUserIds.length === 0) {
+      throw new BadRequestException(
+        'Please select at least one friend.',
+      );
+    }
+
+    if (invitedUserIds.includes(userId)) {
+      throw new BadRequestException('You cannot invite yourself.');
+    }
+
+    const selectedDate = this.validateBookingDate(date);
+    const day: WeekDay = DAYS[selectedDate.getUTCDay()];
+
+    const friendships = await this.prisma.friend.findMany({
+      where: {
+        status: 'ACCEPTED',
+        OR: [
+          {
+            senderId: userId,
+            receiverId: { in: invitedUserIds },
+          },
+          {
+            receiverId: userId,
+            senderId: { in: invitedUserIds },
+          },
+        ],
+      },
+      select: {
+        senderId: true,
+        receiverId: true,
+      },
+    });
+
+    const acceptedFriendIds = new Set(
+      friendships.map((friendship) =>
+        friendship.senderId === userId
+          ? friendship.receiverId
+          : friendship.senderId,
       ),
-      courtName: booking.court.courtName,
-      sport: booking.court.sport,
-      venueName: booking.court.venue.venueName,
-      venueId: booking.court.venue.id,
-      address: `${booking.court.venue.address}, ${booking.court.venue.city}`,
-    })),
-  };
-}
+    );
+
+    const invalidFriends = invitedUserIds.filter(
+      (id) => !acceptedFriendIds.has(id),
+    );
+
+    if (invalidFriends.length > 0) {
+      throw new BadRequestException(
+        'One or more selected players are not your accepted friends.',
+      );
+    }
+
+    const now = new Date();
+
+    const invitationExpiresAt = new Date(
+      now.getTime() +
+        SPLIT_INVITATION_MINUTES * 60 * 1000,
+    );
+
+    try {
+      return await this.prisma.$transaction(
+        async (tx) => {
+          const court = await tx.court.findFirst({
+            where: {
+              id: courtId,
+              isActive: true,
+              venue: {
+                status: 'APPROVED',
+                isActive: true,
+              },
+            },
+          });
+
+          if (!court) {
+            throw new NotFoundException('Court not found');
+          }
+
+          const slot = await tx.courtAvailability.findFirst({
+            where: {
+              courtId,
+              dayOfWeek: day,
+              startTime,
+              isActive: true,
+            },
+          });
+
+          if (!slot) {
+            throw new BadRequestException(
+              'That slot is not available for this court and day.',
+            );
+          }
+
+          const currentTime = new Date();
+
+          const existingBooking =
+            await tx.booking.findFirst({
+              where: {
+                courtId,
+                bookingDate: date,
+                startTime: slot.startTime,
+                endTime: slot.endTime,
+                ...this.getActiveBookingCondition(currentTime),
+              },
+            });
+
+          if (existingBooking) {
+            throw new ConflictException(
+              'That slot was just taken. Please select another slot.',
+            );
+          }
+
+          const participantCount = invitedUserIds.length + 1;
+
+          const baseShare = Math.floor(
+            court.pricePerSlotPKR / participantCount,
+          );
+
+          const creatorShare =
+            court.pricePerSlotPKR -
+            baseShare * invitedUserIds.length;
+
+          const booking = await tx.booking.create({
+            data: {
+              userId,
+              courtId,
+              bookingDate: date,
+              startTime: slot.startTime,
+              endTime: slot.endTime,
+              totalPricePKR: court.pricePerSlotPKR,
+              status: 'PENDING',
+
+              bookingType: 'SPLIT',
+              splitStatus: 'INVITING',
+              invitationExpiresAt,
+              paymentExpiresAt: null,
+
+              participants: {
+                create: [
+                  {
+                    userId,
+                    isCreator: true,
+                    invitationStatus: 'ACCEPTED',
+                    amountPKR: creatorShare,
+                    paymentStatus: 'PENDING',
+                  },
+                  ...invitedUserIds.map((invitedUserId) => ({
+                    userId: invitedUserId,
+                    isCreator: false,
+                    invitationStatus: 'PENDING' as const,
+                    amountPKR: baseShare,
+                    paymentStatus: 'PENDING' as const,
+                  })),
+                ],
+              },
+            },
+            include: {
+              participants: true,
+            },
+          });
+
+          return {
+            message: 'Split booking invitations sent successfully.',
+            booking,
+            invitationExpiresAt,
+          };
+        },
+        {
+          isolationLevel: 'Serializable',
+        },
+      );
+    } catch (error: unknown) {
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'code' in error &&
+        error.code === 'P2034'
+      ) {
+        throw new ConflictException(
+          'This slot is being booked by another player. Please try again.',
+        );
+      }
+
+      throw error;
+    }
+  }
+
+  // ---------- 9. Check and expire a split booking ----------
+
+  private async expireSplitBooking(bookingId: string) {
+    const booking = await this.prisma.booking.findUnique({
+      where: { id: bookingId },
+    });
+
+    if (!booking || booking.status !== 'PENDING') {
+      return;
+    }
+
+    const now = new Date();
+
+    const invitationExpired =
+      booking.bookingType === 'SPLIT' &&
+      booking.splitStatus === 'INVITING' &&
+      booking.invitationExpiresAt !== null &&
+      booking.invitationExpiresAt <= now;
+
+    const paymentExpired =
+      booking.bookingType === 'SPLIT' &&
+      booking.splitStatus === 'READY_FOR_PAYMENT' &&
+      booking.paymentExpiresAt !== null &&
+      booking.paymentExpiresAt <= now;
+
+    if (!invitationExpired && !paymentExpired) {
+      return;
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.booking.updateMany({
+        where: {
+          id: bookingId,
+          status: 'PENDING',
+        },
+        data: {
+          status: 'CANCELLED',
+        },
+      }),
+      this.prisma.bookingParticipant.updateMany({
+        where: {
+          bookingId,
+          invitationStatus: 'PENDING',
+        },
+        data: {
+          invitationStatus: 'EXPIRED',
+        },
+      }),
+    ]);
+  }
+
+  // ---------- 10. Get invitations received by a player ----------
+
+  async getSplitInvitations(userId: string) {
+    const pending = await this.prisma.bookingParticipant.findMany({
+      where: {
+        userId,
+        invitationStatus: 'PENDING',
+        booking: {
+          status: 'PENDING',
+          bookingType: 'SPLIT',
+          splitStatus: 'INVITING',
+        },
+      },
+      select: {
+        bookingId: true,
+      },
+    });
+
+    for (const item of pending) {
+      await this.expireSplitBooking(item.bookingId);
+    }
+
+    const invitations =
+      await this.prisma.bookingParticipant.findMany({
+        where: {
+          userId,
+          invitationStatus: 'PENDING',
+          booking: {
+            status: 'PENDING',
+            bookingType: 'SPLIT',
+            splitStatus: 'INVITING',
+            invitationExpiresAt: {
+              gt: new Date(),
+            },
+          },
+        },
+        include: {
+          booking: {
+            include: {
+              court: {
+                include: {
+                  venue: {
+                    select: {
+                      venueName: true,
+                      address: true,
+                      city: true,
+                    },
+                  },
+                },
+              },
+              user: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+      });
+
+    return {
+      invitations: invitations.map((participant) => ({
+        bookingId: participant.bookingId,
+        amountPKR: participant.amountPKR,
+        invitationExpiresAt:
+          participant.booking.invitationExpiresAt,
+        creatorName: participant.booking.user.name,
+        bookingDate: participant.booking.bookingDate,
+        startTime: participant.booking.startTime,
+        endTime: participant.booking.endTime,
+        courtName: participant.booking.court.courtName,
+        venueName: participant.booking.court.venue.venueName,
+        address: participant.booking.court.venue.address,
+        city: participant.booking.court.venue.city,
+      })),
+    };
+  }
+
+  // ---------- 11. Accept invitation ----------
+
+  async acceptSplitInvitation(
+    userId: string,
+    bookingId: string,
+  ) {
+    await this.expireSplitBooking(bookingId);
+
+    return this.prisma.$transaction(
+      async (tx) => {
+        const booking = await tx.booking.findUnique({
+          where: { id: bookingId },
+        });
+
+        if (
+          !booking ||
+          booking.status !== 'PENDING' ||
+          booking.bookingType !== 'SPLIT' ||
+          booking.splitStatus !== 'INVITING'
+        ) {
+          throw new BadRequestException(
+            'This split invitation is no longer active.',
+          );
+        }
+
+        if (
+          !booking.invitationExpiresAt ||
+          booking.invitationExpiresAt <= new Date()
+        ) {
+          throw new BadRequestException(
+            'The invitation period has expired.',
+          );
+        }
+
+        const participant =
+          await tx.bookingParticipant.findUnique({
+            where: {
+              bookingId_userId: {
+                bookingId,
+                userId,
+              },
+            },
+          });
+
+        if (!participant || participant.isCreator) {
+          throw new ForbiddenException(
+            'You are not invited to this booking.',
+          );
+        }
+
+        if (participant.invitationStatus !== 'PENDING') {
+          throw new BadRequestException(
+            'You have already responded to this invitation.',
+          );
+        }
+
+        await tx.bookingParticipant.update({
+          where: { id: participant.id },
+          data: {
+            invitationStatus: 'ACCEPTED',
+          },
+        });
+
+        const pendingCount =
+          await tx.bookingParticipant.count({
+            where: {
+              bookingId,
+              invitationStatus: 'PENDING',
+            },
+          });
+
+        if (pendingCount === 0) {
+          const paymentExpiresAt = new Date(
+            Date.now() +
+              SPLIT_PAYMENT_MINUTES * 60 * 1000,
+          );
+
+          await tx.booking.update({
+            where: { id: bookingId },
+            data: {
+              splitStatus: 'READY_FOR_PAYMENT',
+              paymentExpiresAt,
+            },
+          });
+
+          return {
+            message:
+              'Everyone accepted. The 20-minute payment period has started.',
+            splitStatus: 'READY_FOR_PAYMENT',
+            paymentExpiresAt,
+          };
+        }
+
+        return {
+          message: 'Invitation accepted successfully.',
+          splitStatus: 'INVITING',
+          pendingInvitations: pendingCount,
+        };
+      },
+      {
+        isolationLevel: 'Serializable',
+      },
+    );
+  }
+
+  // ---------- 12. Decline invitation and cancel entire booking ----------
+
+  async declineSplitInvitation(
+    userId: string,
+    bookingId: string,
+  ) {
+    await this.expireSplitBooking(bookingId);
+
+    return this.prisma.$transaction(async (tx) => {
+      const booking = await tx.booking.findUnique({
+        where: { id: bookingId },
+      });
+
+      if (
+        !booking ||
+        booking.status !== 'PENDING' ||
+        booking.bookingType !== 'SPLIT' ||
+        booking.splitStatus !== 'INVITING'
+      ) {
+        throw new BadRequestException(
+          'This split invitation is no longer active.',
+        );
+      }
+
+      const participant =
+        await tx.bookingParticipant.findUnique({
+          where: {
+            bookingId_userId: {
+              bookingId,
+              userId,
+            },
+          },
+        });
+
+      if (!participant || participant.isCreator) {
+        throw new ForbiddenException(
+          'You are not invited to this booking.',
+        );
+      }
+
+      if (participant.invitationStatus !== 'PENDING') {
+        throw new BadRequestException(
+          'You have already responded to this invitation.',
+        );
+      }
+
+      await tx.booking.update({
+        where: { id: bookingId },
+        data: {
+          status: 'CANCELLED',
+        },
+      });
+
+      // Mark the person who declined as DECLINED.
+      await tx.bookingParticipant.update({
+        where: { id: participant.id },
+        data: {
+          invitationStatus: 'DECLINED',
+        },
+      });
+
+      // Other unanswered invitations are cancelled.
+      await tx.bookingParticipant.updateMany({
+        where: {
+          bookingId,
+          invitationStatus: 'PENDING',
+        },
+        data: {
+          invitationStatus: 'CANCELLED',
+        },
+      });
+
+      return {
+        message:
+          'You declined the invitation. The entire split booking has been cancelled.',
+      };
+    });
+  }
+
+  // ---------- 13. Confirm individual participant payment ----------
+
+  async confirmSplitPayment(
+    userId: string,
+    bookingId: string,
+  ) {
+    await this.expireSplitBooking(bookingId);
+
+    return this.prisma.$transaction(async (tx) => {
+      const booking = await tx.booking.findUnique({
+        where: { id: bookingId },
+      });
+
+      if (
+        !booking ||
+        booking.status !== 'PENDING' ||
+        booking.bookingType !== 'SPLIT' ||
+        booking.splitStatus !== 'READY_FOR_PAYMENT'
+      ) {
+        throw new BadRequestException(
+          'This booking is not ready for split payment.',
+        );
+      }
+
+      if (
+        !booking.paymentExpiresAt ||
+        booking.paymentExpiresAt <= new Date()
+      ) {
+        throw new BadRequestException(
+          'The 20-minute payment period has expired.',
+        );
+      }
+
+      const participant =
+        await tx.bookingParticipant.findUnique({
+          where: {
+            bookingId_userId: {
+              bookingId,
+              userId,
+            },
+          },
+        });
+
+      if (
+        !participant ||
+        participant.invitationStatus !== 'ACCEPTED'
+      ) {
+        throw new ForbiddenException(
+          'You are not an accepted participant in this booking.',
+        );
+      }
+
+      if (participant.paymentStatus === 'PAID') {
+        return {
+          message: 'Your share has already been recorded as paid.',
+        };
+      }
+
+      await tx.bookingParticipant.update({
+        where: { id: participant.id },
+        data: {
+          paymentStatus: 'PAID',
+          paidAt: new Date(),
+        },
+      });
+
+      const unpaidCount =
+        await tx.bookingParticipant.count({
+          where: {
+            bookingId,
+            invitationStatus: 'ACCEPTED',
+            paymentStatus: 'PENDING',
+          },
+        });
+
+      if (unpaidCount === 0) {
+        await tx.booking.updateMany({
+          where: {
+            id: bookingId,
+            status: 'PENDING',
+            bookingType: 'SPLIT',
+            splitStatus: 'READY_FOR_PAYMENT',
+          },
+          data: {
+            status: 'CONFIRMED',
+          },
+        });
+
+        return {
+          message: 'Everyone has paid. Booking confirmed.',
+          status: 'CONFIRMED',
+        };
+      }
+
+      return {
+        message: 'Your share has been recorded.',
+        remainingPayments: unpaidCount,
+      };
+    });
+  }
 }
