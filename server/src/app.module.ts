@@ -13,6 +13,11 @@ import { VenueApplicationModule } from './venue-application/venue-application.mo
 import { CourtModule } from './court/court.module';
 import { PlayerProfileModule } from './player-profile/player-profile.module';
 import { AdminModule } from './admin/admin.module';
+import { FriendService } from './friend/friend.service';
+import { FriendController } from './friend/friend.controller';
+import { FriendModule } from './friend/friend.module';
+import { MatchwithPlayersController } from './matchwith-players/matchwith-players.controller';
+import { MatchwithPlayersModule } from './matchwith-players/matchwith-players.module';
 import { StorageService } from './storage/storage.service';
 import { StorageModule } from './storage/storage.module';
 
@@ -26,9 +31,11 @@ import { StorageModule } from './storage/storage.module';
     CourtModule,
     PlayerProfileModule,
     AdminModule,
+    FriendModule,
+    MatchwithPlayersModule,
     StorageModule,
   ],
-  controllers: [AppController, AuthController],
-  providers: [AppService, AuthapiService],
+  controllers: [AppController, AuthController, FriendController, MatchwithPlayersController],
+  providers: [AppService, AuthapiService, FriendService],
 })
 export class AppModule {}

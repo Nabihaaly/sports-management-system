@@ -1,4 +1,3 @@
-
 "use client";
 
 import RequireRole from "@/Components/RequireRole";
@@ -6,14 +5,14 @@ import {
   getCourt,
   getSlots,
   createBooking,
+  createSplitBooking,
+  getAcceptedFriends,
 } from "../../../services/playerDashboard";
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 
-// Index matches Date.getDay().
-// 0 = Sunday, 1 = Monday, etc.
 const WEEKDAYS = [
   "SUNDAY",
   "MONDAY",
@@ -35,18 +34,8 @@ const WEEK_ORDER = [
 ];
 
 const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
 ];
 
 const toISO = (d: Date) =>
@@ -54,14 +43,15 @@ const toISO = (d: Date) =>
     d.getDate()
   ).padStart(2, "0")}`;
 
-const capitalize = (s: string) =>
-  s.charAt(0) + s.slice(1).toLowerCase();
+const capitalize = (s: string) => s.charAt(0) + s.slice(1).toLowerCase();
 
-// ---------------------------------------------------------------
-// Monthly calendar
-// Only current-year dates from today onwards can be selected.
-// Days when the court does not operate are also disabled.
-// ---------------------------------------------------------------
+interface AcceptedFriend {
+  userId: string;
+  name: string;
+  displayName: string;
+  profilePicture: string | null;
+  city: string | null;
+}
 
 const Calendar = ({
   selectedDate,
@@ -73,45 +63,26 @@ const Calendar = ({
   onSelect: (iso: string) => void;
 }) => {
   const today = new Date();
-
   today.setHours(0, 0, 0, 0);
 
-  const currentYear = today.getFullYear();
-
   const [view, setView] = useState(
-    new Date(currentYear, today.getMonth(), 1)
+    new Date(today.getFullYear(), today.getMonth(), 1)
   );
 
   const year = view.getFullYear();
   const month = view.getMonth();
 
   const blanks = new Date(year, month, 1).getDay();
-
-  const daysInMonth = new Date(
-    year,
-    month + 1,
-    0
-  ).getDate();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
 
   const isCurrentMonth =
-    year === currentYear &&
-    month === today.getMonth();
-
-  const isFirstMonthOfYear =
-    year === currentYear && month === 0;
-
-  const isLastMonthOfYear =
-    year === currentYear && month === 11;
-
-  // Only display the current year in the year dropdown.
-  const years = [currentYear];
+    year === today.getFullYear() && month === today.getMonth();
 
   const cells: (Date | null)[] = [
     ...Array.from({ length: blanks }, () => null),
     ...Array.from(
       { length: daysInMonth },
-      (_, index) =>
-        new Date(year, month, index + 1)
+      (_, i) => new Date(year, month, i + 1)
     ),
   ];
 
@@ -183,7 +154,6 @@ const Calendar = ({
         >
           ›
         </button>
-
       </div>
 
       {/* Weekday headings */}
@@ -200,33 +170,14 @@ const Calendar = ({
 
       </div>
 
-      {/* Calendar dates */}
-
-      <div className="grid grid-cols-7 gap-1">
-
-        {cells.map((date, index) => {
-
-          if (!date) {
-            return <div key={`blank-${index}`} />;
-          }
+      <div className="mt-1 grid grid-cols-7 gap-1">
+        {cells.map((date, i) => {
+          if (!date) return <span key={`blank-${i}`} />;
 
           const iso = toISO(date);
-
-          const isPast = date < today;
-
-          const isCorrectYear =
-            date.getFullYear() === currentYear;
-
-          const isOperatingDay =
-            allowedWeekdays.includes(
-              WEEKDAYS[date.getDay()]
-            );
-
           const enabled =
-            !isPast &&
-            isCorrectYear &&
-            isOperatingDay;
-
+            date >= today &&
+            allowedWeekdays.includes(WEEKDAYS[date.getDay()]);
           const isSelected = iso === selectedDate;
 
           const isToday = date.getTime() === today.getTime();
@@ -237,6 +188,7 @@ const Calendar = ({
               type="button"
               disabled={!enabled}
               onClick={() => onSelect(iso)}
+              className={`rounded py-2 text-sm ${
               aria-pressed={isSelected}
               className={`aspect-square rounded-2xl text-sm font-semibold transition ${
                 isSelected
@@ -250,7 +202,6 @@ const Calendar = ({
             </button>
           );
         })}
-
       </div>
 
       <p className="mt-3 text-xs text-muted">
@@ -261,53 +212,44 @@ const Calendar = ({
   );
 };
 
-// ---------------------------------------------------------------
-// Main page
-// ---------------------------------------------------------------
-
 const Page = () => {
   const { courtId } = useParams<{ courtId: string }>();
-
   const router = useRouter();
 
   const [court, setCourt] = useState<any>(null);
-
   const [loadingCourt, setLoadingCourt] = useState(true);
 
   const [panelOpen, setPanelOpen] = useState(false);
-
   const [date, setDate] = useState("");
-
   const [slots, setSlots] = useState<any[]>([]);
-
   const [selected, setSelected] = useState<any>(null);
-
   const [loadingSlots, setLoadingSlots] = useState(false);
 
+  const [bookingType, setBookingType] = useState<"SINGLE" | "SPLIT">(
+    "SINGLE"
+  );
+
+  const [friends, setFriends] = useState<AcceptedFriend[]>([]);
+  const [selectedFriendIds, setSelectedFriendIds] = useState<string[]>([]);
+  const [loadingFriends, setLoadingFriends] = useState(false);
+
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  // Weekdays that have active availability records.
   const availableWeekdays: string[] = [
     ...new Set<string>(
-      (court?.availabilities || [])
-        .filter((a: any) => a.isActive === true)
-        .map((a: any) => a.dayOfWeek)
+      (court?.availabilities || []).map((a: any) => a.dayOfWeek)
     ),
   ];
 
-  // Operating days shown in court details.
   const operatingDays: string[] = WEEK_ORDER.filter((day) =>
-    (
-      court?.operatingDays?.length
-        ? court.operatingDays.map((d: string) =>
-            d.trim().toUpperCase()
-          )
-        : availableWeekdays
+    (court?.operatingDays?.length
+      ? court.operatingDays.map((d: string) => d.trim().toUpperCase())
+      : availableWeekdays
     ).includes(day)
   );
 
-  // ---------- 1. Load court details ----------
-
+  // Load court details.
   useEffect(() => {
     let isMounted = true;
 
@@ -317,20 +259,11 @@ const Page = () => {
 
       try {
         const data = await getCourt(courtId);
-
-        if (isMounted) {
-          setCourt(data);
-        }
+        if (isMounted) setCourt(data);
       } catch (e: any) {
-        if (isMounted) {
-          setError(
-            e.message || "Unable to load court details"
-          );
-        }
+        if (isMounted) setError(e.message || "Unable to load court details");
       } finally {
-        if (isMounted) {
-          setLoadingCourt(false);
-        }
+        if (isMounted) setLoadingCourt(false);
       }
     };
 
@@ -341,95 +274,135 @@ const Page = () => {
     };
   }, [courtId]);
 
-  // ---------- 2. Load slots whenever a date is selected ----------
+  // Load available slots whenever the selected date changes.
+  useEffect(() => {
+    if (!date) return;
 
-useEffect(() => {
-  const courtId = court?.id;
+    let isMounted = true;
 
-  if (!date || !courtId) return;
-
-  let isMounted = true;
-
-  const loadSlots = async () => {
-    try {
+    const loadSlots = async () => {
       setLoadingSlots(true);
-      setError('');
+      setSlots([]);
       setSelected(null);
+      setError("");
 
-      const result = await getSlots(courtId, date);
+      try {
+        const data = await getSlots(courtId, date);
+        if (isMounted) setSlots(data.slots || []);
+      } catch (e: any) {
+        if (isMounted) setError(e.message || "Unable to load slots");
+      } finally {
+        if (isMounted) setLoadingSlots(false);
+      }
+    };
 
-      if (isMounted) {
-        setSlots(result.slots);
+    loadSlots();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [courtId, date]);
+
+  // Load accepted friends when the player selects split payment.
+  useEffect(() => {
+    if (bookingType !== "SPLIT") return;
+
+    let isMounted = true;
+
+    const loadFriends = async () => {
+      setLoadingFriends(true);
+      setError("");
+
+      try {
+        const data = await getAcceptedFriends();
+
+        if (isMounted) {
+          setFriends(data.friends || []);
+        }
+      } catch (e: any) {
+        if (isMounted) {
+          setError(e.message || "Unable to load your accepted friends");
+        }
+      } finally {
+        if (isMounted) setLoadingFriends(false);
       }
-    } catch (error: any) {
-      if (isMounted) {
-        setSlots([]);
-        setError(
-          error?.response?.data?.message ||
-          'Failed to load available slots'
-        );
-      }
-    } finally {
-      if (isMounted) {
-        setLoadingSlots(false);
-      }
-    }
+    };
+
+    loadFriends();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [bookingType]);
+
+  const toggleFriend = (userId: string) => {
+    setSelectedFriendIds((previous) =>
+      previous.includes(userId)
+        ? previous.filter((id) => id !== userId)
+        : [...previous, userId]
+    );
   };
 
-  loadSlots();
-
-  return () => {
-    isMounted = false;
-  };
-}, [court?.id, date]);
-
-  // ---------- 3. Select a calendar date ----------
-
-  const handleDateSelect = (iso: string) => {
-    setDate(iso);
-    setSelected(null);
-    setError("");
-  };
-
-  // ---------- 4. Save booking and go to checkout ----------
-
+  // Create either a normal booking or a split booking.
   const handleBook = async () => {
-    if (!date) {
-      setError("Please select a date first");
-      return;
-    }
-
     if (!selected) {
       setError("Please select a time slot first");
       return;
     }
 
+    if (bookingType === "SPLIT" && selectedFriendIds.length === 0) {
+      setError("Please select at least one friend for split payment");
+      return;
+    }
+
+    setSubmitting(true);
     setError("");
 
     try {
-      const booking = await createBooking({
-        courtId,
-        date,
-        startTime: selected.startTime,
-      });
+      if (bookingType === "SINGLE") {
+        const booking = await createBooking({
+          courtId,
+          date,
+          startTime: selected.startTime,
+        });
 
-      router.push(
-        `/checkout?bookingId=${booking.id}`
-      );
+        router.push(`/checkout?bookingId=${booking.id}`);
+      } else {
+        await createSplitBooking({
+          courtId,
+          date,
+          startTime: selected.startTime,
+          invitedUserIds: selectedFriendIds,
+        });
+
+        // The split booking will appear in the player's Slots Held area.
+        alert("Invitation successfully sent!");
+setPanelOpen(false);
+setSelected(null);
+setSelectedFriendIds([]);
+setBookingType("SINGLE");
+      }
     } catch (e: any) {
-      setError(
-        e.message || "Unable to create booking"
-      );
+      setError(e.message || "Unable to create booking");
 
-      // Refresh slots if another player booked the slot.
+      // The slot may have just been taken, so reload the slots.
       try {
         const data = await getSlots(courtId, date);
-
         setSlots(data.slots || []);
         setSelected(null);
-      } catch {}
+      } catch {
+        // Keep the original booking error visible.
+      }
+    } finally {
+      setSubmitting(false);
     }
   };
+
+  const participantCount = selectedFriendIds.length + 1;
+  const estimatedShare =
+    court && participantCount > 0
+      ? Math.ceil(court.pricePerSlotPKR / participantCount)
+      : 0;
 
   return (
     <RequireRole role="PLAYER">
@@ -448,9 +421,6 @@ useEffect(() => {
 
         {court && (
           <>
-
-            {/* ---------- Court details ---------- */}
-
             <Link
               href={`/venue/${court.venue.id}`}
               className="btn-ghost -ml-4"
@@ -571,7 +541,6 @@ useEffect(() => {
                     {capitalize(day)}
                   </span>
                 ))}
-
               </div>
             )}
 
@@ -601,14 +570,11 @@ useEffect(() => {
           </>
         )}
 
-        {/* ---------- Booking side panel ---------- */}
-
         {panelOpen && court && (
           <div
             className="fixed inset-0 z-50 flex justify-end bg-ink/40 backdrop-blur-sm"
             onClick={() => setPanelOpen(false)}
           >
-
             <div
               className="h-full w-full max-w-md overflow-y-auto border-l border-line bg-cream p-6"
               onClick={(e) => e.stopPropagation()}
@@ -634,7 +600,6 @@ useEffect(() => {
                 >
                   ×
                 </button>
-
               </div>
 
               {/* ---------- Calendar ---------- */}
@@ -646,7 +611,11 @@ useEffect(() => {
               <Calendar
                 selectedDate={date}
                 allowedWeekdays={availableWeekdays}
-                onSelect={handleDateSelect}
+                onSelect={(iso) => {
+                  setDate(iso);
+                  setSelected(null);
+                  setError("");
+                }}
               />
 
               {/* ---------- Time slots ---------- */}
@@ -686,7 +655,6 @@ useEffect(() => {
               )}
 
               <div className="grid grid-cols-2 gap-2">
-
                 {slots.map((slot) => (
                   <button
                     key={slot.id}
@@ -711,49 +679,171 @@ useEffect(() => {
                     )}
                   </button>
                 ))}
-
               </div>
 
-              {/* ---------- Selected slot summary ---------- */}
+              {selected && (
+                <p className="mt-5 rounded bg-gray-50 p-3 text-sm">
+                  {date} · {selected.startTime} - {selected.endTime} ·{" "}
+                  <b>Rs {court.pricePerSlotPKR.toLocaleString()}</b>
+                </p>
+              )}
 
               {selected && (
-                <div className="card-dark mt-8 flex items-center justify-between gap-4 p-5">
-                  <div>
-                    <p className="eyebrow text-lime">Your slot</p>
-                    <p className="mt-1 text-sm font-medium text-white">
-                      {date}
-                    </p>
-                    <p className="text-sm text-white/70">
-                      {selected.startTime} - {selected.endTime}
-                    </p>
+                <>
+                  <h3 className="mt-5 mb-2 font-semibold">
+                    3. Choose payment type
+                  </h3>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBookingType("SINGLE");
+                        setSelectedFriendIds([]);
+                        setError("");
+                      }}
+                      className={`rounded border p-3 text-sm ${
+                        bookingType === "SINGLE"
+                          ? "border-green-600 bg-green-50 text-green-700"
+                          : "border-gray-300"
+                      }`}
+                    >
+                      <b>Book normally</b>
+                      <span className="mt-1 block">
+                        Pay Rs {court.pricePerSlotPKR.toLocaleString()}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setBookingType("SPLIT");
+                        setError("");
+                      }}
+                      className={`rounded border p-3 text-sm ${
+                        bookingType === "SPLIT"
+                          ? "border-green-600 bg-green-50 text-green-700"
+                          : "border-gray-300"
+                      }`}
+                    >
+                      <b>Split payment</b>
+                      <span className="mt-1 block">
+                        Share with friends
+                      </span>
+                    </button>
                   </div>
-                  <p className="font-heading text-2xl font-black uppercase tracking-tight text-lime">
-                    Rs {court.pricePerSlotPKR.toLocaleString()}
+                </>
+              )}
+
+              {bookingType === "SPLIT" && selected && (
+                <div className="mt-5 rounded-xl border p-3">
+                  <h3 className="font-semibold">4. Invite your friends</h3>
+
+                  <p className="mt-1 text-xs text-gray-500">
+                    Select accepted friends who will share this booking.
+                    Everyone will pay their own equal share.
+                  </p>
+
+                  {loadingFriends && (
+                    <p className="mt-3 text-sm text-gray-500">
+                      Loading friends...
+                    </p>
+                  )}
+
+                  {!loadingFriends && friends.length === 0 && (
+                    <p className="mt-3 text-sm text-gray-500">
+                      You don't have any accepted friends yet.
+                    </p>
+                  )}
+
+                  <div className="mt-3 space-y-2">
+                    {friends.map((friend) => (
+                      <label
+                        key={friend.userId}
+                        className="flex cursor-pointer items-center gap-3 rounded-lg border p-2"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedFriendIds.includes(friend.userId)}
+                          onChange={() => toggleFriend(friend.userId)}
+                          className="h-4 w-4 accent-green-600"
+                        />
+
+                        {friend.profilePicture ? (
+                          <img
+                            src={friend.profilePicture}
+                            alt={friend.displayName}
+                            className="h-9 w-9 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-sm">
+                            {friend.displayName?.charAt(0)?.toUpperCase() ||
+                              "?"}
+                          </div>
+                        )}
+
+                        <div>
+                          <p className="text-sm font-medium">
+                            {friend.displayName || friend.name}
+                          </p>
+                          {friend.city && (
+                            <p className="text-xs text-gray-500">
+                              {friend.city}
+                            </p>
+                          )}
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+
+                  {selectedFriendIds.length > 0 && (
+                    <div className="mt-4 rounded-lg bg-green-50 p-3 text-sm">
+                      <p>
+                        <b>Players:</b> {participantCount}
+                      </p>
+                      <p>
+                        <b>Estimated share per player:</b> Rs{" "}
+                        {estimatedShare.toLocaleString()}
+                      </p>
+                      <p className="mt-2 text-xs text-gray-600">
+                        The exact split is calculated by the server. Any
+                        rounding difference is added to the creator's share.
+                      </p>
+                    </div>
+                  )}
+
+                  <p className="mt-3 text-xs text-gray-500">
+                    Your slot will be held for 30 minutes while friends
+                    respond. Once everyone accepts, a 20-minute payment
+                    period begins.
                   </p>
                 </div>
               )}
 
-              {error && (
-                <p className="mt-4 rounded-2xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">
-                  {error}
-                </p>
-              )}
-
-              {/* ---------- Book selected slot ---------- */}
+              {error && <p className="mt-4 text-sm text-red-600">{error}</p>}
 
               <button
-                type="button"
-                disabled={!selected || loadingSlots}
+                disabled={
+                  !selected ||
+                  loadingSlots ||
+                  submitting ||
+                  (bookingType === "SPLIT" &&
+                    (loadingFriends ||
+                      friends.length === 0 ||
+                      selectedFriendIds.length === 0))
+                }
                 onClick={handleBook}
                 className="btn-primary mt-6 w-full"
               >
-                Continue →
+                {submitting
+                  ? "Processing..."
+                  : bookingType === "SPLIT"
+                  ? "Send split invitations"
+                  : "Book this slot"}
               </button>
-
             </div>
           </div>
         )}
-
       </div>
     </RequireRole>
   );

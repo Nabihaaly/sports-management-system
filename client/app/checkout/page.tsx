@@ -1,118 +1,119 @@
-"use client"
+
+"use client";
+
 import RequireRole from '@/Components/RequireRole';
-import { getBooking, confirmBooking } from '../../services/playerDashboard';
+import {
+  getBooking,
+  confirmBooking,
+  confirmSplitPayment,
+} from '../../services/playerDashboard';
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 const CheckoutContent = () => {
   const bookingId = useSearchParams().get("bookingId");
+
   const [booking, setBooking] = useState<any>(null);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!bookingId) return;
-    getBooking(bookingId).then(setBooking).catch((e) => setError(e.message));
-  }, [bookingId])
+
+    getBooking(bookingId)
+      .then(setBooking)
+      .catch((e) => setError(e.message));
+  }, [bookingId]);
 
   const handleConfirm = async () => {
     try {
-      setBooking(await confirmBooking(booking.id));
+      setError("");
+      setLoading(true);
+
+      if (booking.bookingType === "SPLIT") {
+        // Record this participant's payment
+        await confirmSplitPayment(booking.id);
+
+        // Fetch the complete updated booking again
+        const updatedBooking = await getBooking(booking.id);
+        setBooking(updatedBooking);
+      } else {
+        const updatedBooking = await confirmBooking(booking.id);
+        setBooking(updatedBooking);
+      }
     } catch (e: any) {
       setError(e.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (error && !booking) return <p className="text-sm text-danger">{error}</p>;
+  // Correct amount for the current participant
+  const amount =
+    booking?.bookingType === "SPLIT"
+      ? booking.currentParticipant?.amountPKR
+      : booking?.totalPricePKR;
+
+  if (error && !booking) {
+    return <p className="text-red-600">{error}</p>;
+  }
+
   if (!booking) {
+    return <p>Loading...</p>;
+  }
+
+  // Booking is confirmed only when everyone has paid
+  if (booking.status === "CONFIRMED") {
     return (
-      <div className="space-y-4" aria-busy="true">
-        <div className="h-4 w-24 animate-pulse rounded-2xl bg-mist" />
-        <div className="h-12 w-3/4 animate-pulse rounded-2xl bg-mist" />
-        <div className="h-72 animate-pulse rounded-3xl bg-mist" />
+      <div className="rounded-xl border border-green-300 bg-green-50 p-6 text-center">
+        <h1 className="text-2xl font-bold">Booking confirmed ✓</h1>
+
+        <p className="mt-2">
+          {booking.venueName} · {booking.courtName}
+        </p>
+
+        <p className="font-medium">
+          {booking.bookingDate} · {booking.startTime} - {booking.endTime}
+        </p>
+
+        <p className="pt-2 text-lg font-bold">
+          {booking.bookingType === "SPLIT"
+            ? `Your share: Rs ${Number(amount ?? 0).toLocaleString()}`
+            : `Total: Rs ${Number(amount ?? 0).toLocaleString()}`}
+        </p>
+
+        <Link
+          href="/dashboard"
+          className="mt-4 inline-block rounded bg-green-600 px-4 py-2 text-white"
+        >
+          Back to home
+        </Link>
       </div>
     );
   }
 
- if (booking.status === "CONFIRMED") {
-  return (
-    <div className="card-dark p-6 text-center sm:p-10">
-      <span className="inline-flex items-center rounded-pill bg-lime px-3 py-1 text-xs font-semibold text-ink">
-        Confirmed
-      </span>
-      <h1 className="mt-4 font-heading text-4xl font-black uppercase leading-[0.95] tracking-tight text-white sm:text-5xl">
-        You&apos;re on court.
-      </h1>
-      <p className="mt-3 text-sm text-white/70">
-        Your booking is locked in. See you there.
-      </p>
-
-      <div className="card mt-8 text-left">
-        <p className="eyebrow">Booking details</p>
-
-        <p className="mt-2 font-heading text-xl font-black uppercase leading-[0.95] tracking-tight text-ink">
-          {booking.venueName} · {booking.courtName}
-        </p>
-
-        <p className="mt-2 font-medium text-ink">
-          {booking.bookingDate} · {booking.startTime} - {booking.endTime}
-        </p>
-
-        <div className="mt-4 flex items-center justify-between border-t border-line pt-4">
-          <span className="text-sm text-muted">Total paid</span>
-          <span className="font-heading text-xl font-black text-ink">
-            Rs {booking.totalPricePKR.toLocaleString()}
-          </span>
-        </div>
-      </div>
-
-      <Link
-        href="/dashboard"
-        className="btn-accent mt-8"
-      >
-        Back to home
-      </Link>
-    </div>
-  );
-}
+  // Check whether this participant has already paid
+  const hasPaid =
+    booking.bookingType === "SPLIT" &&
+    booking.currentParticipant?.paymentStatus === "PAID";
 
   return (
     <div>
-      <p className="eyebrow">Checkout</p>
-      <h1 className="page-title mt-1">Confirm your booking</h1>
+      <h1 className="text-2xl font-bold">Checkout</h1>
 
-      <div className="card mt-8 p-6">
-        <p className="eyebrow">Order summary</p>
+      <div className="mt-4 space-y-1 rounded-xl border p-4">
+        <p><b>Venue:</b> {booking.venueName}</p>
+        <p><b>Address:</b> {booking.address}</p>
+        <p><b>Court:</b> {booking.courtName} ({booking.sport})</p>
+        <p><b>Date:</b> {booking.bookingDate}</p>
+        <p><b>Time:</b> {booking.startTime} - {booking.endTime}</p>
 
-        <dl className="mt-4 space-y-3 text-sm">
-          <div className="flex justify-between gap-4">
-            <dt className="text-muted">Venue</dt>
-            <dd className="text-right font-medium text-ink">{booking.venueName}</dd>
-          </div>
-          <div className="flex justify-between gap-4">
-            <dt className="text-muted">Address</dt>
-            <dd className="text-right font-medium text-ink">{booking.address}</dd>
-          </div>
-          <div className="flex justify-between gap-4">
-            <dt className="text-muted">Court</dt>
-            <dd className="text-right font-medium text-ink">{booking.courtName} ({booking.sport})</dd>
-          </div>
-          <div className="flex justify-between gap-4">
-            <dt className="text-muted">Date</dt>
-            <dd className="text-right font-medium text-ink">{booking.bookingDate}</dd>
-          </div>
-          <div className="flex justify-between gap-4">
-            <dt className="text-muted">Time</dt>
-            <dd className="text-right font-medium text-ink">{booking.startTime} - {booking.endTime}</dd>
-          </div>
-        </dl>
-
-        <div className="card-lime mt-6 flex items-center justify-between p-5">
-          <p className="eyebrow text-ink/60">Total</p>
-          <span className="font-heading text-3xl font-black uppercase tracking-tight text-ink">
-            Rs {booking.totalPricePKR.toLocaleString()}
-          </span>
-        </div>
+        <p className="pt-2 text-lg font-bold">
+          {booking.bookingType === "SPLIT"
+            ? `Your share: Rs ${Number(amount ?? 0).toLocaleString()}`
+            : `Total: Rs ${Number(amount ?? 0).toLocaleString()}`}
+        </p>
       </div>
 
       {error && (
@@ -121,17 +122,53 @@ const CheckoutContent = () => {
         </p>
       )}
 
-      <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="badge-warning">Your slot is held for 10 minutes.</p>
-        <button type="button" onClick={handleConfirm} className="btn-primary w-full sm:w-auto">
-          Confirm booking
-        </button>
-      </div>
+      {booking.bookingType === "SPLIT" ? (
+        hasPaid ? (
+          <div className="mt-4 rounded-lg bg-blue-50 p-4 text-center">
+            <p className="font-semibold text-green-700">
+              Your share has been paid ✓
+            </p>
+
+            <p className="mt-2 text-sm text-gray-600">
+              Waiting for the other participants to complete their payments.
+              Your booking will be confirmed once everyone has paid.
+            </p>
+          </div>
+        ) : (
+          <>
+            <p className="mt-4 text-sm text-gray-500">
+              You have 20 minutes to complete your split booking payment.
+            </p>
+
+            <button
+              onClick={handleConfirm}
+              disabled={loading}
+              className="mt-2 rounded bg-green-600 px-5 py-2 text-white disabled:opacity-50"
+            >
+              {loading ? "Processing..." : "Confirm booking"}
+            </button>
+          </>
+        )
+      ) : (
+        <>
+          <p className="mt-4 text-sm text-gray-500">
+            Your slot is held for 10 minutes.
+          </p>
+
+          <button
+            onClick={handleConfirm}
+            disabled={loading}
+            className="mt-2 rounded bg-green-600 px-5 py-2 text-white disabled:opacity-50"
+          >
+            {loading ? "Processing..." : "Confirm booking"}
+          </button>
+        </>
+      )}
     </div>
   );
 };
 
-const page = () => {
+const Page = () => {
   return (
     <RequireRole role="PLAYER">
       <div className="page-narrow max-w-xl">
@@ -140,7 +177,7 @@ const page = () => {
         </Suspense>
       </div>
     </RequireRole>
-  )
-}
+  );
+};
 
-export default page
+export default Page;
