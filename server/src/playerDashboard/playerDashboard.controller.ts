@@ -18,6 +18,12 @@ import { playerDashboardService } from './playerDashboard.service';
 export class playerDashboardController {
   constructor(private readonly playerservice: playerDashboardService) {}
 
+    // GET /player/public-venues — landing page ke liye, login nahi chahiye
+  @Get('public-venues')
+  getPublicVenues() {
+    return this.playerservice.getVenues();
+  }
+
   // GET /player/venues
   @Get('venues')
   @UseGuards(AuthGuard, RolesGuard)
