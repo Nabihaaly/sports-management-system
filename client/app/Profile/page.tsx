@@ -211,127 +211,136 @@ const Page = () => {
   if (loading) {
     return (
       <RequireRole role="PLAYER">
-        <p className="mt-20 text-center">Loading profile...</p>
+        <div className="page-narrow space-y-4" aria-busy="true">
+          <div className="h-12 w-1/2 animate-pulse rounded-2xl bg-mist" />
+          <div className="h-80 animate-pulse rounded-3xl bg-mist" />
+        </div>
       </RequireRole>
     );
   }
 
   return (
     <RequireRole role="PLAYER">
-      <div className="min-h-screen bg-gray-50 px-4 py-8">
+      <div className="page-narrow">
 
-        <div className="mx-auto max-w-3xl">
-
-          {/* Profile Heading */}
-          <div className="mb-6 flex items-center justify-between">
-            <h1 className="text-2xl font-bold">
-              My Profile
+        {/* Profile Heading */}
+        <div className="mb-8 flex items-end justify-between gap-4">
+          <div>
+            <p className="eyebrow">Player</p>
+            <h1 className="page-title mt-1">
+              My profile
             </h1>
-
-            <a
-              href="/dashboard"
-              className="text-sm text-gray-600 hover:text-black"
-            >
-              Back to venues
-            </a>
           </div>
 
-          {error && (
-            <p className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-600">
-              {error}
-            </p>
-          )}
+          <a
+            href="/dashboard"
+            className="btn-ghost -mr-4 shrink-0"
+          >
+            ← Back to venues
+          </a>
+        </div>
 
-          {editing ? (
+        {error && (
+          <p className="mb-4 rounded-2xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">
+            {error}
+          </p>
+        )}
 
-            /* EDIT PROFILE SECTION */
-            <div className="rounded-xl border bg-white p-6 shadow-sm">
+        {editing ? (
 
-              <h2 className="mb-6 text-xl font-semibold">
-                {profile ? "Edit Profile" : "Build your player profile"}
-              </h2>
+          /* EDIT PROFILE SECTION */
+          <div className="card p-6 sm:p-8">
 
-              <form onSubmit={handleSave} className="space-y-5">
+            <p className="eyebrow">{profile ? "Edit" : "Get started"}</p>
+            <h2 className="section-title mb-6 mt-1">
+              {profile ? "Edit profile" : "Build your player profile"}
+            </h2>
 
-                <div>
-                  <label className="mb-1 block font-medium">
-                    Display name *
-                  </label>
+            <form onSubmit={handleSave} className="space-y-5">
 
-                  <input
-                    value={form.displayName}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        displayName: e.target.value,
-                      }))
-                    }
-                    placeholder="Your display name"
-                    required
-                    className="w-full rounded-md border p-3"
-                  />
-                </div>
+              <div>
+                <label className="label" htmlFor="profile-displayName">
+                  Display name *
+                </label>
 
-                <div>
-                  <label className="mb-1 block font-medium">
-                    Home city *
-                  </label>
+                <input
+                  id="profile-displayName"
+                  value={form.displayName}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      displayName: e.target.value,
+                    }))
+                  }
+                  placeholder="Your display name"
+                  required
+                  className="input"
+                />
+              </div>
 
-                  <input
-                    value={form.city}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        city: e.target.value,
-                      }))
-                    }
-                    placeholder="Karachi"
-                    required
-                    className="w-full rounded-md border p-3"
-                  />
-                </div>
+              <div>
+                <label className="label" htmlFor="profile-city">
+                  Home city *
+                </label>
 
-                <div>
-                  <label className="mb-1 block font-medium">
-                    Skill level
-                  </label>
+                <input
+                  id="profile-city"
+                  value={form.city}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      city: e.target.value,
+                    }))
+                  }
+                  placeholder="Karachi"
+                  required
+                  className="input"
+                />
+              </div>
 
-                  <select
-                    value={form.skillLevel}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        skillLevel: e.target.value as SkillLevel | "",
-                      }))
-                    }
-                    className="w-full rounded-md border p-3"
-                  >
-                    <option value="">Select skill level</option>
+              <div>
+                <label className="label" htmlFor="profile-skillLevel">
+                  Skill level
+                </label>
 
-                    {SKILL_LEVELS.map((level) => (
-                      <option key={level} value={level}>
-                        {level}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                <select
+                  id="profile-skillLevel"
+                  value={form.skillLevel}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      skillLevel: e.target.value as SkillLevel | "",
+                    }))
+                  }
+                  className="input"
+                >
+                  <option value="">Select skill level</option>
 
-                                <div>
-                  <label className="mb-1 block font-medium">Profile photo</label>
+                  {SKILL_LEVELS.map((level) => (
+                    <option key={level} value={level}>
+                      {level}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <p className="label">Profile photo</p>
+                <div className="rounded-2xl border border-dashed border-line bg-mist/40 p-4">
                   {profile ? (
-                    <div className="flex items-center gap-4">
+                    <div className="flex flex-wrap items-center gap-4">
                       {profile.profilePicture ? (
                         <img
                           src={profile.profilePicture}
                           alt="Profile"
-                          className="h-20 w-20 rounded-full border object-cover"
+                          className="h-20 w-20 rounded-full object-cover ring-4 ring-lime"
                         />
                       ) : (
-                        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-gray-200 text-2xl font-bold text-gray-600">
+                        <div className="flex h-20 w-20 items-center justify-center rounded-full bg-forest font-heading text-2xl font-black text-lime ring-4 ring-lime">
                           {profile.displayName?.charAt(0).toUpperCase() || "?"}
                         </div>
                       )}
-                      <label className="cursor-pointer rounded-md border px-4 py-2 text-sm hover:bg-gray-100">
+                      <label className="btn-outline cursor-pointer">
                         {uploading ? "Uploading..." : profile.profilePicture ? "Change photo" : "Upload photo"}
                         <input
                           type="file"
@@ -345,228 +354,239 @@ const Page = () => {
                         <button
                           type="button"
                           onClick={handleRemovePicture}
-                          className="text-sm text-red-600 underline"
+                          className="btn-ghost text-danger hover:bg-danger-soft hover:text-danger"
                         >
                           Remove
                         </button>
                       )}
                     </div>
                   ) : (
-                    <p className="text-sm text-gray-500">
+                    <p className="text-sm text-muted">
                       Save your profile first, then you can add a photo.
                     </p>
                   )}
-                  <p className="mt-1 text-xs text-gray-500">JPG, PNG or WebP · max 5 MB</p>
+                  <p className="mt-3 text-xs text-muted">JPG, PNG or WebP · max 5 MB</p>
                 </div>
+              </div>
 
-                <div>
-                  <label className="mb-1 block font-medium">
-                    Bio
-                  </label>
+              <div>
+                <label className="label" htmlFor="profile-bio">
+                  Bio
+                </label>
 
-                  <textarea
-                    value={form.bio}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        bio: e.target.value,
-                      }))
-                    }
-                    maxLength={300}
-                    placeholder="Tell other players about yourself..."
-                    className="w-full rounded-md border p-3"
-                    rows={4}
-                  />
-                </div>
+                <textarea
+                  id="profile-bio"
+                  value={form.bio}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      bio: e.target.value,
+                    }))
+                  }
+                  maxLength={300}
+                  placeholder="Tell other players about yourself..."
+                  className="input"
+                  rows={4}
+                />
+              </div>
 
-                <div>
-                  <p className="mb-2 font-medium">
-                    Preferred sports
-                  </p>
+              <div>
+                <p className="label">
+                  Preferred sports
+                </p>
 
-                  <div className="flex flex-wrap gap-2">
-                    {SPORTS.map((sport) => (
-                      <button
-                        type="button"
-                        key={sport}
-                        onClick={() => toggleSport(sport)}
-                        className={`rounded-full border px-4 py-2 text-sm ${
-                          form.preferredSports.includes(sport)
-                            ? "border-black bg-black text-white"
-                            : "bg-white hover:bg-gray-100"
-                        }`}
-                      >
-                        {sport}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3 rounded-lg border p-4">
-                  <input
-                    type="checkbox"
-                    id="availableForMatching"
-                    checked={form.availableForMatching}
-                    onChange={(e) =>
-                      setForm((prev) => ({
-                        ...prev,
-                        availableForMatching: e.target.checked,
-                      }))
-                    }
-                    className="mt-1 h-5 w-5 accent-black"
-                  />
-
-                  <div>
-                    <label
-                      htmlFor="availableForMatching"
-                      className="cursor-pointer font-medium"
-                    >
-                      Available for matching
-                    </label>
-
-                    <p className="mt-1 text-sm text-gray-500">
-                      Allow other players to find and match with you.
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-3 pt-2">
-
-                  {profile && (
+                <div className="flex flex-wrap gap-2">
+                  {SPORTS.map((sport) => (
                     <button
                       type="button"
-                      onClick={handleCancel}
-                      className="w-full rounded-md border p-3"
+                      key={sport}
+                      onClick={() => toggleSport(sport)}
+                      aria-pressed={form.preferredSports.includes(sport)}
+                      className={`${
+                        form.preferredSports.includes(sport)
+                          ? "chip-active"
+                          : "chip hover:border-ink"
+                      } px-4 py-1.5 text-sm transition`}
                     >
-                      Cancel
+                      {sport}
                     </button>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={saving}
-                    className="w-full rounded-md bg-black p-3 text-white disabled:opacity-50"
-                  >
-                    {saving ? "Saving..." : "Save Profile"}
-                  </button>
-
+                  ))}
                 </div>
-              </form>
-            </div>
+              </div>
 
-          ) : (
+              <div className="flex items-start gap-3 rounded-2xl border border-line bg-mist/40 p-4">
+                <input
+                  type="checkbox"
+                  id="availableForMatching"
+                  checked={form.availableForMatching}
+                  onChange={(e) =>
+                    setForm((prev) => ({
+                      ...prev,
+                      availableForMatching: e.target.checked,
+                    }))
+                  }
+                  className="mt-1 h-5 w-5 cursor-pointer accent-ink"
+                />
 
-            /* PROFILE VIEW SECTION */
-            <div className="overflow-hidden rounded-xl border bg-white shadow-sm">
+                <div>
+                  <label
+                    htmlFor="availableForMatching"
+                    className="cursor-pointer font-semibold text-ink"
+                  >
+                    Available for matching
+                  </label>
 
-              {/* Profile Top Section */}
-              <div className="flex flex-col gap-6 p-6 sm:flex-row sm:items-center">
+                  <p className="mt-1 text-sm text-muted">
+                    Allow other players to find and match with you.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 pt-2 sm:flex-row">
+
+                {profile && (
+                  <button
+                    type="button"
+                    onClick={handleCancel}
+                    className="btn-outline w-full"
+                  >
+                    Cancel
+                  </button>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="btn-primary w-full"
+                >
+                  {saving ? "Saving..." : "Save profile"}
+                </button>
+
+              </div>
+            </form>
+          </div>
+
+        ) : (
+
+          /* PROFILE VIEW SECTION */
+          <div className="space-y-5">
+
+            {/* Profile Top Section */}
+            <div className="card p-6 sm:p-8">
+              <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start">
 
                 {/* Profile Picture */}
-                <div className="flex justify-center sm:w-1/3">
-                  {profile?.profilePicture ? (
-                    <img
-                      src={profile.profilePicture}
-                      alt={profile.displayName}
-                      className="h-32 w-32 rounded-full border object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-32 w-32 items-center justify-center rounded-full bg-gray-200 text-4xl font-bold text-gray-600">
-                      {profile?.displayName?.charAt(0).toUpperCase() || "?"}
-                    </div>
-                  )}
-                </div>
+                {profile?.profilePicture ? (
+                  <img
+                    src={profile.profilePicture}
+                    alt={profile.displayName}
+                    className="h-32 w-32 shrink-0 rounded-full object-cover ring-4 ring-lime"
+                  />
+                ) : (
+                  <div className="flex h-32 w-32 shrink-0 items-center justify-center rounded-full bg-forest font-heading text-5xl font-black text-lime ring-4 ring-lime">
+                    {profile?.displayName?.charAt(0).toUpperCase() || "?"}
+                  </div>
+                )}
 
                 {/* Profile Information */}
                 <div className="flex-1 text-center sm:text-left">
 
-                  <div className="mb-3 flex flex-col items-center gap-3 sm:flex-row">
-                    <h2 className="text-2xl font-semibold">
+                  <p className="eyebrow">Player card</p>
+
+                  <div className="mt-1 flex flex-col items-center gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <h2 className="font-heading text-3xl font-black uppercase leading-[0.95] tracking-tight text-ink sm:text-4xl">
                       {profile?.displayName}
                     </h2>
 
                     <button
+                      type="button"
                       onClick={() => setEditing(true)}
-                      className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-gray-100"
+                      className="btn-outline shrink-0"
                     >
-                      Edit Profile
+                      Edit profile
                     </button>
                   </div>
 
-                  <p className="text-gray-600">
-                    {profile?.city}
-                  </p>
+                  <div className="mt-4 flex flex-wrap justify-center gap-2 sm:justify-start">
+                    {profile?.city && (
+                      <span className="chip">{profile.city}</span>
+                    )}
+                    {profile?.skillLevel && (
+                      <span className="chip-active">{profile.skillLevel}</span>
+                    )}
+                    <span
+                      className={
+                        profile?.availableForMatching
+                          ? "badge-success"
+                          : "badge-warning"
+                      }
+                    >
+                      {profile?.availableForMatching
+                        ? "Available for matching"
+                        : "Not available for matching"}
+                    </span>
+                  </div>
 
                   {profile?.bio && (
-                    <p className="mt-3 whitespace-pre-wrap text-sm">
+                    <p className="mt-5 whitespace-pre-wrap text-sm text-ink">
                       {profile.bio}
                     </p>
                   )}
 
                 </div>
               </div>
+            </div>
 
-              <div className="border-t" />
+            {/* Player Details */}
+            <div className="grid gap-4 sm:grid-cols-2">
 
-              {/* Player Details */}
-              <div className="space-y-6 p-6">
+              <div className="card-dark">
+                <p className="eyebrow text-lime">Skill level</p>
+                <p className="mt-2 font-heading text-3xl font-black uppercase leading-[0.95] tracking-tight text-white">
+                  {profile?.skillLevel || "Not set"}
+                </p>
+              </div>
 
-                <div>
-                  <h3 className="mb-2 font-semibold">
-                    Skill Level
-                  </h3>
+              <div className="card-dark">
+                <p className="eyebrow text-lime">Player matching</p>
+                <p className="mt-2 font-heading text-3xl font-black uppercase leading-[0.95] tracking-tight text-white">
+                  {profile?.availableForMatching ? "Open" : "Closed"}
+                </p>
+                <p className="mt-1 text-xs text-white/60">
+                  {profile?.availableForMatching
+                    ? "Available for matching"
+                    : "Not available for matching"}
+                </p>
+              </div>
 
-                  <span className="inline-block rounded-full bg-gray-100 px-4 py-2 text-sm">
-                    {profile?.skillLevel || "Not specified"}
-                  </span>
-                </div>
+            </div>
 
-                <div>
-                  <h3 className="mb-2 font-semibold">
-                    Preferred Sports
-                  </h3>
+            <div className="card p-6">
+              <h3 className="eyebrow">
+                Preferred sports
+              </h3>
 
-                  <div className="flex flex-wrap gap-2">
-                    {profile?.preferredSports?.length ? (
-                      profile.preferredSports.map((sport) => (
-                        <span
-                          key={sport}
-                          className="rounded-full bg-gray-100 px-4 py-2 text-sm"
-                        >
-                          {sport}
-                        </span>
-                      ))
-                    ) : (
-                      <p className="text-sm text-gray-500">
-                        No preferred sports added yet.
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <h3 className="mb-2 font-semibold">
-                    Player Matching
-                  </h3>
-
-                  <span
-                    className={`inline-block rounded-full px-4 py-2 text-sm ${
-                      profile?.availableForMatching
-                        ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-gray-600"
-                    }`}
-                  >
-                    {profile?.availableForMatching
-                      ? "Available for matching"
-                      : "Not available for matching"}
-                  </span>
-                </div>
-
+              <div className="mt-3 flex flex-wrap gap-2">
+                {profile?.preferredSports?.length ? (
+                  profile.preferredSports.map((sport) => (
+                    <span
+                      key={sport}
+                      className="chip-active"
+                    >
+                      {sport}
+                    </span>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted">
+                    No preferred sports added yet.
+                  </p>
+                )}
               </div>
             </div>
-          )}
 
-        </div>
+          </div>
+        )}
+
       </div>
     </RequireRole>
   );

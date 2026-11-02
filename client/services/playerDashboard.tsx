@@ -24,6 +24,11 @@ export async function getPlayerData() {
   return request("/player/");
 }
 
+// landing page: public venues (no login needed)
+export function getPublicVenues() {
+  return request("/player/public-venues");
+}
+
 // page 1: venues list
 export function getVenues() {
   return request("/player/venues");

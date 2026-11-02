@@ -19,22 +19,33 @@ const Court3DViewer = ({ src, alt = "3D view of the court", height = 420 }: Prop
 
   if (!ready) {
     return (
-      <div style={{ height }} className="flex items-center justify-center border rounded-md bg-gray-50">
-        <p className="text-sm text-gray-600">Loading 3D viewer...</p>
+      <div
+        style={{ height }}
+        className="flex animate-pulse items-center justify-center rounded-3xl bg-mist"
+        aria-busy="true"
+      >
+        <p className="eyebrow">Loading 3D viewer...</p>
       </div>
     );
   }
 
   return (
-    // @ts-expect-error — model-viewer custom element, React ko iski types nahi pata
-    <model-viewer
-      src={src}
-      alt={alt}
-      camera-controls
-      auto-rotate
-      shadow-intensity="1"
-      style={{ width: "100%", height: `${height}px`, borderRadius: "8px", background: "#f3f4f6" }}
-    />
+    <div className="overflow-hidden rounded-3xl bg-mist">
+      {/* @ts-expect-error — model-viewer custom element, React ko iski types nahi pata */}
+      <model-viewer
+        src={src}
+        alt={alt}
+        camera-controls
+        auto-rotate
+        shadow-intensity="1"
+        style={{
+          width: "100%",
+          height: `${height}px`,
+          display: "block",
+          background: "var(--color-mist)",
+        }}
+      />
+    </div>
   );
 };
 

@@ -165,96 +165,109 @@ const Page = () => {
   };
 
   if (loading) {
-    return <p className="text-center mt-20">Loading profile...</p>;
+    return (
+      <div className="page-narrow max-w-2xl space-y-4" aria-busy="true">
+        <div className="h-12 w-2/3 animate-pulse rounded-2xl bg-mist" />
+        <div className="h-96 animate-pulse rounded-3xl bg-mist" />
+      </div>
+    );
   }
 
   return (
     <RequireRole role="PLAYER">
-      <div>
-        <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-6">
+      <div className="page-narrow max-w-2xl">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div>
-            <h2 className="text-xl font-semibold mb-1">Build your player card</h2>
+            <p className="eyebrow">Step 2 of 2</p>
+            <h2 className="page-title mt-1 mb-2">Build your player card</h2>
 
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="mb-8 max-w-md text-sm text-muted">
               Level, sports and matching preferences — the better we know you,
               the better we can match you.
             </p>
 
-            <div className="space-y-4">
+            <div className="card space-y-5 p-6 sm:p-8">
               {/* Profile photo (optional) */}
               <div>
-                <label className="block mb-1">
-                  Profile photo <span className="text-gray-400">(optional)</span>
-                </label>
-                <div className="flex items-center gap-3">
-                  {photoPreview ? (
-                    <img
-                      src={photoPreview}
-                      alt="Profile preview"
-                      className="w-16 h-16 rounded-full object-cover border"
-                    />
-                  ) : (
-                    <div className="w-16 h-16 rounded-full bg-gray-200 border" />
-                  )}
-                  <label className="border rounded-md px-3 py-1.5 text-sm cursor-pointer">
-                    {photoFile ? "Change photo" : "Choose photo"}
-                    <input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp"
-                      onChange={handlePhotoSelect}
-                      className="hidden"
-                    />
-                  </label>
-                  {photoFile && (
-                    <button
-                      type="button"
-                      onClick={handlePhotoClear}
-                      className="text-sm text-red-600 underline"
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Uploaded when you save · JPG, PNG or WebP · max {MAX_IMAGE_MB} MB
+                <p className="label">
+                  Profile photo <span className="font-normal normal-case tracking-normal text-muted/70">(optional)</span>
                 </p>
+                <div className="rounded-2xl border border-dashed border-line bg-mist/40 p-4">
+                  <div className="flex flex-wrap items-center gap-4">
+                    {photoPreview ? (
+                      <img
+                        src={photoPreview}
+                        alt="Profile preview"
+                        className="h-16 w-16 rounded-full object-cover ring-4 ring-lime"
+                      />
+                    ) : (
+                      <div className="flex h-16 w-16 items-center justify-center rounded-full bg-forest font-heading text-xl font-black text-lime ring-4 ring-lime">
+                        {form.displayName.trim().charAt(0).toUpperCase() || "?"}
+                      </div>
+                    )}
+                    <label className="btn-outline cursor-pointer">
+                      {photoFile ? "Change photo" : "Choose photo"}
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        onChange={handlePhotoSelect}
+                        className="hidden"
+                      />
+                    </label>
+                    {photoFile && (
+                      <button
+                        type="button"
+                        onClick={handlePhotoClear}
+                        className="btn-ghost text-danger hover:bg-danger-soft hover:text-danger"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <p className="mt-3 text-xs text-muted">
+                    Uploaded when you save · JPG, PNG or WebP · max {MAX_IMAGE_MB} MB
+                  </p>
+                </div>
               </div>
 
               <div>
-                <label className="block mb-1">
-                  Display name <span className="text-red-500">*</span>
+                <label className="label" htmlFor="onboarding-displayName">
+                  Display name <span className="text-danger">*</span>
                 </label>
                 <input
+                  id="onboarding-displayName"
                   name="displayName"
                   value={form.displayName}
                   onChange={handleChange}
                   placeholder="Alex Rivera"
                   required
-                  className="w-full border rounded-md p-2"
+                  className="input"
                 />
               </div>
 
               <div>
-                <label className="block mb-1">
-                  Home city <span className="text-red-500">*</span>
+                <label className="label" htmlFor="onboarding-city">
+                  Home city <span className="text-danger">*</span>
                 </label>
                 <input
+                  id="onboarding-city"
                   name="city"
                   value={form.city}
                   onChange={handleChange}
                   placeholder="Karachi"
                   required
-                  className="w-full border rounded-md p-2"
+                  className="input"
                 />
               </div>
 
               <div>
-                <label className="block mb-1">Skill level</label>
+                <label className="label" htmlFor="onboarding-skillLevel">Skill level</label>
                 <select
+                  id="onboarding-skillLevel"
                   name="skillLevel"
                   value={form.skillLevel}
                   onChange={handleChange}
-                  className="w-full border rounded-md p-2"
+                  className="input"
                 >
                   <option value="">Select</option>
                   {SKILL_LEVELS.map((s) => (
@@ -266,7 +279,7 @@ const Page = () => {
               </div>
 
               {/* Available for matching */}
-              <div className="flex items-center gap-3 border rounded-md p-4">
+              <div className="flex items-start gap-3 rounded-2xl border border-line bg-mist/40 p-4">
                 <input
                   type="checkbox"
                   id="availableForMatching"
@@ -277,34 +290,35 @@ const Page = () => {
                       availableForMatching: e.target.checked,
                     }))
                   }
-                  className="h-5 w-5 cursor-pointer accent-black"
+                  className="mt-1 h-5 w-5 cursor-pointer accent-ink"
                 />
                 <div>
                   <label
                     htmlFor="availableForMatching"
-                    className="font-medium cursor-pointer"
+                    className="cursor-pointer font-semibold text-ink"
                   >
                     Available for matching
                   </label>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="mt-1 text-sm text-muted">
                     Allow other players to find and match with you.
                   </p>
                 </div>
               </div>
 
               <div>
-                <label className="block mb-1">Preferred sports</label>
+                <p className="label">Preferred sports</p>
                 <div className="flex flex-wrap gap-2">
                   {SPORTS.map((sport) => (
                     <button
                       type="button"
                       key={sport}
                       onClick={() => toggleSport(sport)}
-                      className={`border rounded-full px-3 py-1 ${
+                      aria-pressed={form.preferredSports.includes(sport)}
+                      className={`${
                         form.preferredSports.includes(sport)
-                          ? "bg-black text-white"
-                          : ""
-                      }`}
+                          ? "chip-active"
+                          : "chip hover:border-ink"
+                      } px-4 py-1.5 text-sm transition`}
                     >
                       {sport}
                     </button>
@@ -313,26 +327,32 @@ const Page = () => {
               </div>
 
               <div>
-                <label className="block mb-1">Bio</label>
+                <label className="label" htmlFor="onboarding-bio">Bio</label>
                 <textarea
+                  id="onboarding-bio"
+                  rows={4}
                   name="bio"
                   value={form.bio}
                   onChange={handleChange}
                   maxLength={300}
                   placeholder="A line or two about your game."
-                  className="w-full border rounded-md p-2"
+                  className="input"
                 />
               </div>
             </div>
           </div>
 
-          {error && <p className="text-red-600">{error}</p>}
+          {error && (
+            <p className="rounded-2xl border border-danger/30 bg-danger-soft px-4 py-3 text-sm text-danger">
+              {error}
+            </p>
+          )}
 
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-3 sm:flex-row">
             <button
               type="button"
               onClick={handleSkip}
-              className="w-full border rounded-md p-3"
+              className="btn-outline w-full"
             >
               Skip for now
             </button>
@@ -340,9 +360,9 @@ const Page = () => {
             <button
               type="submit"
               disabled={saving}
-              className="w-full bg-black text-white rounded-md p-3 disabled:opacity-50"
+              className="btn-primary w-full"
             >
-              {saving ? "Saving..." : "Save & start playing"}
+              {saving ? "Saving..." : "Save & start playing →"}
             </button>
           </div>
         </form>

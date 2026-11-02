@@ -54,15 +54,24 @@ const ImagePicker = ({ images, onChange, upload, max = 6 }: Props) => {
 
   return (
     <div className="space-y-2">
-      <div className="flex flex-wrap gap-2">
-        {images.map((url) => (
-          <div key={url} className="relative w-24 h-24">
-            <img src={url} alt="" className="w-full h-full object-cover rounded-md border" />
+      <div className="flex flex-wrap gap-3">
+        {images.map((url, i) => (
+          <div key={url} className="relative h-24 w-24">
+            <img
+              src={url}
+              alt={i === 0 ? "Cover photo" : `Photo ${i + 1}`}
+              className="h-full w-full rounded-2xl border border-line object-cover"
+            />
+            {i === 0 && (
+              <span className="absolute bottom-1.5 left-1.5 rounded-pill bg-lime px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-ink">
+                Cover
+              </span>
+            )}
             <button
               type="button"
               disabled={busy}
               onClick={() => handleRemove(url)}
-              className="absolute -top-2 -right-2 bg-white border rounded-full w-6 h-6 text-xs leading-none disabled:opacity-50"
+              className="absolute -right-2 -top-2 inline-flex h-6 w-6 items-center justify-center rounded-pill bg-ink text-[10px] leading-none text-white transition hover:bg-danger disabled:opacity-50"
               aria-label="Remove photo"
             >
               ✕
@@ -71,7 +80,7 @@ const ImagePicker = ({ images, onChange, upload, max = 6 }: Props) => {
         ))}
         {images.length < max && (
           <label
-            className={`w-24 h-24 border-2 border-dashed rounded-md flex items-center justify-center text-sm cursor-pointer ${
+            className={`flex h-24 w-24 cursor-pointer flex-col items-center justify-center gap-1 rounded-2xl border border-dashed border-line bg-mist/50 text-sm font-medium text-muted transition hover:border-ink hover:text-ink ${
               busy ? "opacity-50 pointer-events-none" : ""
             }`}
           >
@@ -87,7 +96,7 @@ const ImagePicker = ({ images, onChange, upload, max = 6 }: Props) => {
           </label>
         )}
       </div>
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-muted">
         {images.length}/{max} photos · JPG, PNG or WebP · max {MAX_MB} MB each
       </p>
     </div>
